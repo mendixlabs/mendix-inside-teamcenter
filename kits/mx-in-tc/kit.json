@@ -1,0 +1,5 @@
+{
+    "name": "mx-in-tc",
+    "kitDeps": ["afx"],
+    "modules": ["mx-in-tc"]
+}
