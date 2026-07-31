@@ -34,31 +34,31 @@ export const mendixRenderFunction = (props) => {
             await ensureHasValidSession(mendixUrl);
 
             const app = await import(/* webpackIgnore: true */ `${mendixUrl}dist/embedded-index.js`);
-            const cleanup = await app.render(container, { remoteUrl: mendixUrl, minHeight: '100vh', parameters: { SelectedItemRevision: selectedItemRevision } });
+            const cleanup = await app.render(container, { remoteUrl: mendixUrl, minHeight: '100vh', c { SelectedItemRevision: selectedItemRevision } });
 
-            const onReload = () => load(container);
-            container.addEventListener(RELOAD_EVENT, onReload, { once: true });
+    const onReload = () => load(container);
+    container.addEventListener(RELOAD_EVENT, onReload, { once: true });
 
-            currentMendixCleanup = () => {
-                container.removeEventListener(RELOAD_EVENT, onReload);
-                cleanup?.();
-            };
-        } catch (error) {
-            setError(error);
-        }
+    currentMendixCleanup = () => {
+        container.removeEventListener(RELOAD_EVENT, onReload);
+        cleanup?.();
+    };
+} catch (error) {
+    setError(error);
+}
     }, [mendixUrl, selectedItemRevision]);
 
 
-    if (error) {
-        if (error.code === 'POPUP_BLOCKED') {
-            return <PopupBlockedView subPanelContext={{ retry: retryError }} />;
-        }
-
-        return <GeneralErrorViewModel subPanelContext={{ errorMessage: error.message ?? 'An unexpected error occurred.', retry: retryError }} />;
+if (error) {
+    if (error.code === 'POPUP_BLOCKED') {
+        return <PopupBlockedView subPanelContext={{ retry: retryError }} />;
     }
 
+    return <GeneralErrorViewModel subPanelContext={{ errorMessage: error.message ?? 'An unexpected error occurred.', retry: retryError }} />;
+}
 
-    return <div ref={load} style={{ width: '100%', height: '100vh' }} />;
+
+return <div ref={load} style={{ width: '100%', height: '100vh' }} />;
 };
 
 export const mendixCleanupFunction = () => {

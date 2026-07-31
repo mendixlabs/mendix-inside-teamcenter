@@ -8,16 +8,32 @@ class MendixEmbeddedError extends Error {
     }
 }
 
-
-export const getMendixUrl = (props) => {
-    const url = sessionStorage.getItem('url') ?? props.url ?? props.subPanelContext?.declarativeKeyContext;
-
-    if (url === undefined) {
-        return url;
+export const getMendixConfiguration = (props) => {
+    const config = props.config ?? props.subPanelContext?.declarativeKeyContext;
+    if (!config) {
+        return { url: undefined, parameters: [] };
     }
 
-    return url.endsWith('/') ? url : url + '/';
+    const url = new URL(config);
+    const parameters = Array.from(
+        url.searchParams,
+        ([target, source]) => [target, source === '' ? target : source]
+    );
+
+    url.search = '';
+    if (!url.pathname.endsWith('/')) {
+        url.pathname += '/';
+    }
+
+    return {
+        url: url.toString(),
+        parameters
+    };
 };
+
+export const getMendixParameters = (selected, parameterMappings) => Object.fromEntries(
+    parameterMappings.map(([target, source]) => [target, selected?.[source]])
+);
 
 export const ensureHasValidSession = async (url) => {
     if (await hasValidSession(url)) {

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import PopupBlockedView from '../viewmodel/PopupBlockedViewModel';
 import GeneralErrorViewModel from '../viewmodel/GeneralErrorViewModel';
-import { getMendixUrl, ensureHasValidSession } from './mendixEmbeddedUtils';
+import { ensureHasValidSession, getMendixConfiguration, getMendixParameters } from './mendixEmbeddedUtils';
 
 const RELOAD_EVENT = 'embedded-app-reload';
 
@@ -11,7 +11,10 @@ let currentMendixCleanup;
 export const mendixRenderFunction = (props) => {
     const [error, setError] = useState(undefined);
 
-    const mendixUrl = getMendixUrl(props);
+    const { url: mendixUrl, parameters: parameterMappings } = getMendixConfiguration(props);
+    const parameters = getMendixParameters(props.ctx?.selected, parameterMappings);
+    const parametersKey = JSON.stringify(parameters);
+
     if (mendixUrl === undefined) {
         setError('There is no Mendix URL configured. Contact support to resolve this issue.');
     }
@@ -32,7 +35,7 @@ export const mendixRenderFunction = (props) => {
             await ensureHasValidSession(mendixUrl);
 
             const app = await import(/* webpackIgnore: true */ `${mendixUrl}dist/embedded-index.js`);
-            const cleanup = await app.render(container, { remoteUrl: mendixUrl, minHeight: '100vh' });
+            const cleanup = await app.render(container, { remoteUrl: mendixUrl, minHeight: '100vh', parameters });
 
             const onReload = () => load(container);
             container.addEventListener(RELOAD_EVENT, onReload, { once: true });
@@ -44,7 +47,7 @@ export const mendixRenderFunction = (props) => {
         } catch (error) {
             setError(error);
         }
-    }, [mendixUrl]);
+    }, [mendixUrl, parametersKey]);
 
 
     if (error) {
