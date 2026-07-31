@@ -18,13 +18,16 @@ https://mx-in-tc-endpoint.com/?itemType=type&uid
 
 Each query parameter describes a value read from the Active Workspace `selected` object:
 
-| Configuration        | Result passed to Mendix                          |
-| -------------------- | ------------------------------------------------ |
-| `?uid`               | `{ uid: selected.uid }`                          |
-| `?itemUID=uid`       | `{ itemUID: selected.uid }`                      |
-| `?uid&itemType=type` | `{ uid: selected.uid, itemType: selected.type }` |
+| Configuration                         | Result passed to Mendix                                      |
+| ------------------------------------- | ------------------------------------------------------------ |
+| `?uid`                                | `{ uid: selected.uid }`                                      |
+| `?itemUID=uid`                        | `{ itemUID: selected.uid }`                                  |
+| `?uid&itemType=type`                  | `{ uid: selected.uid, itemType: selected.type }`             |
+| `?modelTypeName=modelType.name`       | `{ modelTypeName: selected.modelType.name }`                  |
 
 Use `target=source` when the Mendix parameter and Teamcenter field have different names. When only a name is provided, it is used as both target and source, so `uid` is shorthand for `uid=uid`.
+
+Use dot notation to read nested fields. For example, `modelTypeName=modelType.name` reads the value at `selected.modelType.name` and passes it as `modelTypeName`. The resolved value must be a primitive, such as a string, number, or boolean; objects and arrays are not supported as Mendix parameters. If any part of the path is unavailable, the parameter receives `undefined`.
 
 The component removes these query parameters from the URL before loading Mendix. If a selected field is unavailable, its Mendix parameter receives `undefined`.
 

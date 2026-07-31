@@ -32,7 +32,10 @@ export const getMendixConfiguration = (props) => {
 };
 
 export const getMendixParameters = (selected, parameterMappings) => Object.fromEntries(
-    parameterMappings.map(([target, source]) => [target, selected?.[source]])
+    parameterMappings.map(([target, source]) => [
+        target,
+        source.split('.').reduce((value, key) => value?.[key], selected)
+    ])
 );
 
 export const ensureHasValidSession = async (url) => {

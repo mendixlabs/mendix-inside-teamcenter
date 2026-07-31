@@ -13,7 +13,7 @@ export const mendixRenderFunction = (props) => {
 
     const { url: mendixUrl, parameters: parameterMappings } = getMendixConfiguration(props);
     const parameters = getMendixParameters(props.ctx?.selected, parameterMappings);
-    const parameterValues = parameterMappings.map(([, source]) => props.ctx?.selected?.[source]);
+    const parameterValues = parameterMappings.map(([target]) => parameters[target]);
 
     const retryError = () => {
         setError(undefined);
