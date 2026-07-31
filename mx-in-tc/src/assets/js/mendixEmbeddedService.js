@@ -13,7 +13,7 @@ export const mendixRenderFunction = (props) => {
 
     const { url: mendixUrl, parameters: parameterMappings } = getMendixConfiguration(props);
     const parameters = getMendixParameters(props.ctx?.selected, parameterMappings);
-    const parametersKey = JSON.stringify(parameters);
+    const parameterValues = parameterMappings.map(([, source]) => props.ctx?.selected?.[source]);
 
     if (mendixUrl === undefined) {
         setError('There is no Mendix URL configured. Contact support to resolve this issue.');
@@ -47,7 +47,7 @@ export const mendixRenderFunction = (props) => {
         } catch (error) {
             setError(error);
         }
-    }, [mendixUrl, parametersKey]);
+    }, [mendixUrl, ...parameterValues]);
 
 
     if (error) {
