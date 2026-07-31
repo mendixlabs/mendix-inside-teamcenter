@@ -15,10 +15,6 @@ export const mendixRenderFunction = (props) => {
     const parameters = getMendixParameters(props.ctx?.selected, parameterMappings);
     const parameterValues = parameterMappings.map(([, source]) => props.ctx?.selected?.[source]);
 
-    if (mendixUrl === undefined) {
-        setError('There is no Mendix URL configured. Contact support to resolve this issue.');
-    }
-
     const retryError = () => {
         setError(undefined);
     };
