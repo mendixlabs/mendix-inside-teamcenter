@@ -1,44 +1,80 @@
 # mx-in-tc kit
 
-This Active Workspace kit provides a `MendixEmbedded` component that embeds a Mendix application inside Teamcenter. This is the default kit.
+This Active Workspace kit provides a `MendixEmbedded` component that embeds a Mendix application inside Teamcenter.
 
-## Configuration
+### Configuration
 
-Use the Mendix application URL as the component configuration. Optional URL query parameters pass fields from `props.ctx.selected` to Mendix:
+Configure the component with the Mendix application URL.
+
+```text
+https://mx-in-tc-endpoint.com
+```
+
+To pass fields from the selected Teamcenter object to Mendix, add them as URL query parameters:
 
 ```text
 https://mx-in-tc-endpoint.com/?itemType=type&uid
 ```
 
-This passes:
+Each query parameter describes a value read from the Active Workspace `selected` object:
 
-```js
-{
-  itemType: props.ctx.selected.type,
-  uid: props.ctx.selected.uid
+| Configuration        | Result passed to Mendix                          |
+| -------------------- | ------------------------------------------------ |
+| `?uid`               | `{ uid: selected.uid }`                          |
+| `?itemUID=uid`       | `{ itemUID: selected.uid }`                      |
+| `?uid&itemType=type` | `{ uid: selected.uid, itemType: selected.type }` |
+
+Use `target=source` when the Mendix parameter and Teamcenter field have different names. When only a name is provided, it is used as both target and source, so `uid` is shorthand for `uid=uid`.
+
+The component removes these query parameters from the URL before loading Mendix. If a selected field is unavailable, its Mendix parameter receives `undefined`.
+
+### XRT view
+
+Add the embedded Mendix application to a Teamcenter object by adding the following to the XRT using the XRT editor:
+
+```html
+<htmlPanel
+  declarativeKey="MendixEmbedded"
+  context="https://mx-in-tc-endpoint.com/?uid&amp;itemType=type"
+></htmlPanel>
+```
+
+XRT is XML, so a literal `&` cannot appear in an attribute value. Write each separator as `&amp;` to keep the XRT valid. The XML parser decodes it before passing the configuration to the component, which receives a normal `&`.
+
+### PLM Home
+
+Add the component to PLM Home by adding it to the cards in `layoutsViewModel` on the home screen:
+
+```json
+"Mendix": {
+  "title": "Mendix",
+  "view": "MendixEmbedded",
+  "anchor": "",
+  "props": {
+    "subPanelContext": {
+      "declarativeKeyContext": "https://mx-in-tc-endpoint.com/?uid&itemType=type"
+    }
+  }
 }
 ```
 
-Use `target=source` to rename a parameter. A parameter without a value uses the same name for both sides, so `uid` is shorthand for `uid=uid`. Missing selected fields are passed as `undefined`. Use a plain URL when no context parameters are needed.
+Set `declarativeKeyContext` to the same URL and parameter mappings. Unlike XML, a JSON string can contain `&` directly, so do not replace it with `&amp;`.
 
-In XRT XML, write `&` as `&amp;`:
+Once added, the card can be placed in the layout handler grid.
 
-```xml
-context="https://mx-in-tc-endpoint.com/?itemType=type&amp;uid"
+### Disabling authentication
+
+The component validates the Mendix session and starts Teamcenter SSO when needed. To disable authentication, remove the session check from `mx-in-tc/src/assets/js/mendixEmbeddedService.js`:
+
+```diff
+-            await ensureHasValidSession(mendixUrl);
 ```
 
-In JSON configuration, use a normal `&`:
+Also remove `ensureHasValidSession` from the import in the same file:
 
-```json
-"declarativeKeyContext": "https://mx-in-tc-endpoint.com/?itemType=type&uid"
+```diff
+-import { ensureHasValidSession, getMendixConfiguration, getMendixParameters } from './mendixEmbeddedUtils';
++import { getMendixConfiguration, getMendixParameters } from './mendixEmbeddedUtils';
 ```
 
-## Disabling authentication
-
-By default, the component validates the Mendix session and starts Teamcenter SSO when needed. To use a Mendix application that does not require authentication, remove this line from `src/assets/js/mendixEmbeddedService.js`:
-
-```js
-await ensureHasValidSession(mendixUrl);
-```
-
-Remove `ensureHasValidSession` from the import in the same file as well. Only make this change when the Mendix application is intentionally accessible without Teamcenter SSO, such as during local development.
+Only disable authentication when the Mendix application is intentionally accessible without Teamcenter SSO, such as in a local development environment.
