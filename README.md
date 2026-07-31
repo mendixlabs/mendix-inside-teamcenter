@@ -1,18 +1,11 @@
 # Mendix inside Teamcenter
 
-This repository contains Active Workspace kits that provide the `MendixEmbedded` component for embedding a Mendix application inside Teamcenter.
-
-Two kits are available:
-
-- `mx-in-tc` - Default kit
-- `mx-in-tc-no-auth` - Skips authentication; for development use only
-
-Choose the kit that best matches your use case and use only one variant at a time. Each kit is intended as a starting point and can be customized for your integration.
+This repository contains the `mx-in-tc` Active Workspace kit, which provides the `MendixEmbedded` component for embedding a Mendix application inside Teamcenter. The kit is intended as a starting point and can be customized for your integration.
 
 ## Installation
 
 1. Clone or download this repository.
-1. Copy the desired kit into the Active Workspace repository of Teamcenter.
+1. Copy the `mx-in-tc` kit into the Active Workspace repository of Teamcenter.
 1. Rebuild Active Workspace.
 
 ## Setup
@@ -72,3 +65,20 @@ Add the component to PLM Home by adding it to the cards in `layoutsViewModel` on
 Set `declarativeKeyContext` to the same URL and parameter mappings. Unlike XML, a JSON string can contain `&` directly, so do not replace it with `&amp;`.
 
 Once added, the card can be placed in the layout handler grid.
+
+### Disabling authentication
+
+The component validates the Mendix session and starts Teamcenter SSO when needed. If authentication is not required, remove the session check from `mx-in-tc/src/assets/js/mendixEmbeddedService.js`:
+
+```diff
+-            await ensureHasValidSession(mendixUrl);
+```
+
+Also remove `ensureHasValidSession` from the import in the same file:
+
+```diff
+-import { ensureHasValidSession, getMendixConfiguration, getMendixParameters } from './mendixEmbeddedUtils';
++import { getMendixConfiguration, getMendixParameters } from './mendixEmbeddedUtils';
+```
+
+Only disable authentication when the Mendix application is intentionally accessible without Teamcenter SSO, such as in a local development environment.

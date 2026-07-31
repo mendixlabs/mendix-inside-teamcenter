@@ -32,3 +32,13 @@ In JSON configuration, use a normal `&`:
 ```json
 "declarativeKeyContext": "https://mx-in-tc-endpoint.com/?itemType=type&uid"
 ```
+
+## Disabling authentication
+
+By default, the component validates the Mendix session and starts Teamcenter SSO when needed. To use a Mendix application that does not require authentication, remove this line from `src/assets/js/mendixEmbeddedService.js`:
+
+```js
+await ensureHasValidSession(mendixUrl);
+```
+
+Remove `ensureHasValidSession` from the import in the same file as well. Only make this change when the Mendix application is intentionally accessible without Teamcenter SSO, such as during local development.
