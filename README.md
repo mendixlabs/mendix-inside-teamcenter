@@ -2,7 +2,7 @@
 
 This repository contains Active Workspace kits that provide the `MendixEmbedded` component for embedding a Mendix application inside Teamcenter.
 
-Three kits are available:
+Two kits are available:
 
 - `mx-in-tc` - Default kit
 - `mx-in-tc-no-auth` - Skips authentication; for development use only
