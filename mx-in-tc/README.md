@@ -10,35 +10,43 @@ Configure the component with the Mendix application URL.
 https://mx-in-tc-endpoint.com
 ```
 
-To pass fields from the selected Teamcenter object to Mendix, add them as URL query parameters:
+To pass fields from the Active Workspace component context to Mendix, add explicit mappings as URL query parameters:
 
 ```text
-https://mx-in-tc-endpoint.com/?itemType=type&uid
+https://mx-in-tc-endpoint.com/?uid={selected.uid}
 ```
 
-Each query parameter describes a value read from the Active Workspace `selected` object:
+Wrap a value in braces to read it from the component `ctx` object:
 
-| Configuration                         | Result passed to Mendix                                      |
-| ------------------------------------- | ------------------------------------------------------------ |
-| `?uid`                                | `{ uid: selected.uid }`                                      |
-| `?itemUID=uid`                        | `{ itemUID: selected.uid }`                                  |
-| `?uid&itemType=type`                  | `{ uid: selected.uid, itemType: selected.type }`             |
-| `?modelTypeName=modelType.name`       | `{ modelTypeName: selected.modelType.name }`                  |
+| Configuration                              | Result passed to Mendix                          |
+| ------------------------------------------ | ------------------------------------------------ |
+| `?itemUID={selected.uid}`                  | `{ itemUID: ctx.selected.uid }`                  |
+| `?modelTypeName={selected.modelType.name}` | `{ modelTypeName: ctx.selected.modelType.name }` |
+| `?mode=edit`                               | `{ mode: "edit" }`                               |
+| `?limit=10&editable=true`                  | `{ limit: 10, editable: true }`                  |
 
-Use `target=source` when the Mendix parameter and Teamcenter field have different names. When only a name is provided, it is used as both target and source, so `uid` is shorthand for `uid=uid`.
+Mappings are always explicit: use `target={context.path}` to map a context value or `target=value` for a hardcoded value.
 
-Use dot notation to read nested fields. For example, `modelTypeName=modelType.name` reads the value at `selected.modelType.name` and passes it as `modelTypeName`. The resolved value must be a primitive, such as a string, number, or boolean; objects and arrays are not supported as Mendix parameters. If any part of the path is unavailable, the parameter receives `undefined`.
+Use dot notation inside the braces to read nested fields. For example, `modelTypeName={selected.modelType.name}` reads the value at `ctx.selected.modelType.name` and passes it as `modelTypeName`. The resolved value must be a primitive, such as a string, number, or boolean; objects and arrays are not supported as Mendix parameters. If any part of the path is unavailable, the parameter receives `undefined`.
 
-The component removes these query parameters from the URL before loading Mendix. If a selected field is unavailable, its Mendix parameter receives `undefined`.
+Values without braces are hardcoded primitives. `true` and `false` become booleans, JSON-formatted numbers become numbers, and other values remain strings. JSON-quoted strings are also supported; encode their double quotes as `%22` in the URL. This can force a value such as `%22true%22` to remain the string `"true"` instead of becoming a boolean.
+
+```text
+https://mx-in-tc-endpoint.com/?activeView={ui}&itemUID={selected.uid}&mode=edit&limit=10
+```
+
+This passes `{ uid: ctx.selected.uid, mode: "edit", limit: 10 }`.
+
+The component removes these query parameters from the URL before loading Mendix. If a mapped context field is unavailable, its Mendix parameter receives `undefined`.
 
 ### XRT view
 
 Add the embedded Mendix application to a Teamcenter object by adding the following to the XRT using the XRT editor:
 
-```html
+```xml
 <htmlPanel
   declarativeKey="MendixEmbedded"
-  context="https://mx-in-tc-endpoint.com/?uid&amp;itemType=type"
+  context="https://mx-in-tc-endpoint.com/?uid={selected.uid}&amp;mode=edit"
 ></htmlPanel>
 ```
 
@@ -55,7 +63,7 @@ Add the component to PLM Home by adding it to the cards in `layoutsViewModel` on
   "anchor": "",
   "props": {
     "subPanelContext": {
-      "declarativeKeyContext": "https://mx-in-tc-endpoint.com/?uid&itemType=type"
+      "declarativeKeyContext": "https://mx-in-tc-endpoint.com/?uid={selected.uid}&mode=edit"
     }
   }
 }

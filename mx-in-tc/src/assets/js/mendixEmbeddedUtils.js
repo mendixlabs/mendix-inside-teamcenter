@@ -15,10 +15,7 @@ export const getMendixConfiguration = (props) => {
     }
 
     const url = new URL(config);
-    const parameters = Array.from(
-        url.searchParams,
-        ([target, source]) => [target, source === '' ? target : source]
-    );
+    const parameters = Array.from(url.searchParams);
 
     url.search = '';
     if (!url.pathname.endsWith('/')) {
@@ -31,12 +28,30 @@ export const getMendixConfiguration = (props) => {
     };
 };
 
-export const getMendixParameters = (selected, parameterMappings) => Object.fromEntries(
-    parameterMappings.map(([target, source]) => [
+export const getMendixParameters = (context, parameterMappings) => Object.fromEntries(
+    parameterMappings.map(([target, value]) => [
         target,
-        source.split('.').reduce((value, key) => value?.[key], selected)
+        resolveParameterValue(context, value)
     ])
 );
+
+const resolveParameterValue = (context, value) => {
+    if (value.startsWith('{') && value.endsWith('}')) {
+        return value.slice(1, -1).split('.').reduce((resolved, key) => resolved?.[key], context);
+    }
+
+    try {
+        const parsedValue = JSON.parse(value);
+        if (typeof parsedValue === 'string' || typeof parsedValue === 'number' || typeof parsedValue === 'boolean') {
+            return parsedValue;
+        }
+    } catch {
+        // Values that are not valid JSON primitives are treated as plain string literals.
+        return value;
+    }
+
+    return value;
+};
 
 export const ensureHasValidSession = async (url) => {
     if (await hasValidSession(url)) {
