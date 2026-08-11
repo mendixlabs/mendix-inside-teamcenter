@@ -14,7 +14,13 @@ export const getMendixConfiguration = (props) => {
         return { url: undefined, parameters: [] };
     }
 
-    const url = new URL(config);
+    let url;
+    try {
+        url = new URL(config);
+    } catch {
+        throw new MendixEmbeddedError('The Mendix application URL is invalid.', 'INVALID_URL');
+    }
+
     const parameters = Array.from(url.searchParams);
 
     url.search = '';
