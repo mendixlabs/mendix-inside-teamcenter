@@ -8,15 +8,55 @@ class MendixEmbeddedError extends Error {
     }
 }
 
-
-export const getMendixUrl = (props) => {
-    const url = sessionStorage.getItem('url') ?? props.url ?? props.subPanelContext?.declarativeKeyContext;
-
-    if (url === undefined) {
-        return url;
+export const getMendixConfiguration = (props) => {
+    const config = props.config ?? props.subPanelContext?.declarativeKeyContext;
+    if (!config) {
+        return { url: undefined, parameters: [] };
     }
 
-    return url.endsWith('/') ? url : url + '/';
+    let url;
+    try {
+        url = new URL(config);
+    } catch {
+        throw new MendixEmbeddedError('The Mendix application URL is invalid.', 'INVALID_URL');
+    }
+
+    const parameters = Array.from(url.searchParams);
+
+    url.search = '';
+    if (!url.pathname.endsWith('/')) {
+        url.pathname += '/';
+    }
+
+    return {
+        url: url.toString(),
+        parameters
+    };
+};
+
+export const getMendixParameters = (context, parameterMappings) => Object.fromEntries(
+    parameterMappings.map(([target, value]) => [
+        target,
+        resolveParameterValue(context, value)
+    ])
+);
+
+const resolveParameterValue = (context, value) => {
+    if (value.startsWith('{') && value.endsWith('}')) {
+        return value.slice(1, -1).split('.').reduce((resolved, key) => resolved?.[key], context);
+    }
+
+    try {
+        const parsedValue = JSON.parse(value);
+        if (typeof parsedValue === 'string' || typeof parsedValue === 'number' || typeof parsedValue === 'boolean') {
+            return parsedValue;
+        }
+    } catch {
+        // Values that are not valid JSON primitives are treated as plain string literals.
+        return value;
+    }
+
+    return value;
 };
 
 export const ensureHasValidSession = async (url) => {

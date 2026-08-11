@@ -24,7 +24,7 @@
     "i18n": {},
     "messages": {},
     "props": {
-        "url": {
+        "config": {
             "type": "string"
         }
     }
