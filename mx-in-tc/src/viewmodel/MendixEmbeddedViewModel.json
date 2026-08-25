@@ -3,7 +3,18 @@
     "ctx": {
         "selected": null
     },
-    "data": {},
+    "data": {
+        "errorCode": {
+            "displayName": "",
+            "type": "STRING",
+            "dbValue": ""
+        },
+        "errorMessage": {
+            "displayName": "",
+            "type": "STRING",
+            "dbValue": ""
+        }
+    },
     "lifecycleHooks": {
         "render": "render",
         "onUnmount": "cleanup"

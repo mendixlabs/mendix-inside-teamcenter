@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 import PopupBlockedView from '../viewmodel/PopupBlockedViewModel';
 import GeneralErrorViewModel from '../viewmodel/GeneralErrorViewModel';
@@ -9,14 +9,14 @@ const RELOAD_EVENT = 'embedded-app-reload';
 let currentMendixCleanup;
 
 export const mendixRenderFunction = (props) => {
-    const [error, setError] = useState(undefined);
-
+    const { errorCode, errorMessage } = props.data;
     const { url: mendixUrl, parameters: parameterMappings } = getMendixConfiguration(props);
     const parameters = getMendixParameters(props.ctx, parameterMappings);
     const parameterValues = parameterMappings.map(([target]) => parameters[target]);
 
     const retryError = () => {
-        setError(undefined);
+        errorCode.dbValue = '';
+        errorMessage.dbValue = '';
     };
 
 
@@ -41,17 +41,18 @@ export const mendixRenderFunction = (props) => {
                 cleanup?.();
             };
         } catch (error) {
-            setError(error);
+            errorCode.dbValue = error.code ?? 'UNEXPECTED_ERROR';
+            errorMessage.dbValue = error.message ?? 'An unexpected error occurred.';
         }
     }, [mendixUrl, ...parameterValues]);
 
 
-    if (error) {
-        if (error.code === 'POPUP_BLOCKED') {
+    if (errorMessage.dbValue) {
+        if (errorCode.dbValue === 'POPUP_BLOCKED') {
             return <PopupBlockedView subPanelContext={{ retry: retryError }} />;
         }
 
-        return <GeneralErrorViewModel subPanelContext={{ errorMessage: error.message ?? 'An unexpected error occurred.', retry: retryError }} />;
+        return <GeneralErrorViewModel subPanelContext={{ errorMessage: errorMessage.dbValue, retry: retryError }} />;
     }
 
 
