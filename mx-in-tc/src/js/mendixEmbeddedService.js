@@ -1,66 +1,102 @@
-import { useCallback } from 'react';
+import {
+  ensureHasValidSession,
+  getMendixConfiguration,
+  getMendixParameters,
+  MendixEmbeddedError,
+} from "./mendixEmbeddedUtils";
 
-import PopupBlockedView from '../viewmodel/PopupBlockedViewModel';
-import GeneralErrorViewModel from '../viewmodel/GeneralErrorViewModel';
-import { ensureHasValidSession, getMendixConfiguration, getMendixParameters } from './mendixEmbeddedUtils';
+const RELOAD_EVENT = "embedded-app-reload";
+const CLEAR_ERROR_RESULT = { errorCode: "", errorMessage: "" };
 
-const RELOAD_EVENT = 'embedded-app-reload';
+const stateByContainerRef = new WeakMap();
+const hasConfigurationChanged = (containerRef, configurationKey) =>
+  stateByContainerRef.get(containerRef)?.configurationKey !== configurationKey;
+const isCurrentLoad = (containerRef, state) =>
+  stateByContainerRef.get(containerRef) === state;
 
-let currentMendixCleanup;
+export const loadMendix = async (
+  containerRef,
+  config,
+  subPanelContext,
+  context,
+  reloadAction,
+) => {
+  let state;
 
-export const mendixRenderFunction = (props) => {
-    const { errorCode, errorMessage } = props.data;
-    const { url: mendixUrl, parameters: parameterMappings } = getMendixConfiguration(props);
-    const parameters = getMendixParameters(props.ctx, parameterMappings);
-    const parameterValues = parameterMappings.map(([target]) => parameters[target]);
+  try {
+    const { url, parameters: parameterMappings } = getMendixConfiguration({
+      config,
+      subPanelContext,
+    });
+    const parameters = getMendixParameters(context, parameterMappings);
 
-    const retryError = () => {
-        errorCode.dbValue = '';
-        errorMessage.dbValue = '';
-    };
-
-
-    const load = useCallback(async (container) => {
-        mendixCleanupFunction();
-
-        if (!container) {
-            return;
-        }
-
-        try {
-            await ensureHasValidSession(mendixUrl);
-
-            const app = await import(/* webpackIgnore: true */ `${mendixUrl}dist/embedded-index.js`);
-            const cleanup = await app.render(container, { remoteUrl: mendixUrl, minHeight: '100vh', parameters });
-
-            const onReload = () => load(container);
-            container.addEventListener(RELOAD_EVENT, onReload, { once: true });
-
-            currentMendixCleanup = () => {
-                container.removeEventListener(RELOAD_EVENT, onReload);
-                cleanup?.();
-            };
-        } catch (error) {
-            errorCode.dbValue = error.code ?? 'UNEXPECTED_ERROR';
-            errorMessage.dbValue = error.message ?? 'An unexpected error occurred.';
-        }
-    }, [mendixUrl, ...parameterValues]);
-
-
-    if (errorMessage.dbValue) {
-        if (errorCode.dbValue === 'POPUP_BLOCKED') {
-            return <PopupBlockedView subPanelContext={{ retry: retryError }} />;
-        }
-
-        return <GeneralErrorViewModel subPanelContext={{ errorMessage: errorMessage.dbValue, retry: retryError }} />;
+    const configurationKey = JSON.stringify({ url, parameters });
+    if (!hasConfigurationChanged(containerRef, configurationKey)) {
+      return;
     }
 
+    mendixCleanupFunction(containerRef);
 
-    return <div ref={load} style={{ width: '100%', height: '100vh' }} />;
+    state = { configurationKey };
+    stateByContainerRef.set(containerRef, state);
+
+    await ensureHasValidSession(url);
+
+    const app = await import(
+      /* webpackIgnore: true */ `${url}dist/embedded-index.js`
+    );
+
+    if (!isCurrentLoad(containerRef, state)) {
+      return;
+    }
+
+    const container = containerRef.current;
+    if (!container) {
+      throw new MendixEmbeddedError(
+        "Unable to find the Mendix application container.",
+        "CONTAINER_NOT_FOUND",
+      );
+    }
+
+    const unmount = await app.render(container, {
+      remoteUrl: url,
+      minHeight: "100vh",
+      parameters,
+    });
+
+    if (!isCurrentLoad(containerRef, state)) {
+      unmount?.();
+      return;
+    }
+
+    const onReload = () => {
+      mendixCleanupFunction(containerRef);
+      reloadAction();
+    };
+    container.addEventListener(RELOAD_EVENT, onReload, { once: true });
+
+    state.cleanup = () => {
+      container.removeEventListener(RELOAD_EVENT, onReload);
+      unmount?.();
+    };
+
+    return CLEAR_ERROR_RESULT;
+  } catch (error) {
+    // A superseded load must not overwrite the outcome of the load that replaced it.
+    if (state && !isCurrentLoad(containerRef, state)) {
+      return;
+    }
+
+    mendixCleanupFunction(containerRef);
+    return {
+      errorCode: error?.code ?? "UNEXPECTED_ERROR",
+      errorMessage: error?.message ?? "An unexpected error occurred.",
+    };
+  }
 };
 
-export const mendixCleanupFunction = () => {
-    const cleanup = currentMendixCleanup;
-    currentMendixCleanup = undefined;
-    cleanup?.();
+export const mendixCleanupFunction = (containerRef) => {
+  const state = stateByContainerRef.get(containerRef);
+  stateByContainerRef.delete(containerRef);
+  state?.cleanup?.();
 };

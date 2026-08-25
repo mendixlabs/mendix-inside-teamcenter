@@ -1,54 +1,68 @@
 const POPUP_TIMEOUT = 30000;
 
-class MendixEmbeddedError extends Error {
+export class MendixEmbeddedError extends Error {
     constructor(message, code) {
         super(message);
-        this.name = 'MendixEmbeddedError';
+        this.name = "MendixEmbeddedError";
         this.code = code;
     }
 }
 
 export const getMendixConfiguration = (props) => {
-    const config = props.config ?? props.subPanelContext?.declarativeKeyContext;
+    const config = props.config || props.subPanelContext?.declarativeKeyContext;
     if (!config) {
-        return { url: undefined, parameters: [] };
+        throw new MendixEmbeddedError(
+            "A Mendix application URL is required.",
+            "MISSING_CONFIGURATION",
+        );
     }
 
     let url;
     try {
         url = new URL(config);
     } catch {
-        throw new MendixEmbeddedError('The Mendix application URL is invalid.', 'INVALID_URL');
+        throw new MendixEmbeddedError(
+            "The Mendix application URL is invalid.",
+            "INVALID_URL",
+        );
     }
 
     const parameters = Array.from(url.searchParams);
 
-    url.search = '';
-    if (!url.pathname.endsWith('/')) {
-        url.pathname += '/';
+    url.search = "";
+    if (!url.pathname.endsWith("/")) {
+        url.pathname += "/";
     }
 
     return {
         url: url.toString(),
-        parameters
+        parameters,
     };
 };
 
-export const getMendixParameters = (context, parameterMappings) => Object.fromEntries(
-    parameterMappings.map(([target, value]) => [
-        target,
-        resolveParameterValue(context, value)
-    ])
-);
+export const getMendixParameters = (context, parameterMappings) =>
+    Object.fromEntries(
+        parameterMappings.map(([target, value]) => [
+            target,
+            resolveParameterValue(context, value),
+        ]),
+    );
 
 const resolveParameterValue = (context, value) => {
-    if (value.startsWith('{') && value.endsWith('}')) {
-        return value.slice(1, -1).split('.').reduce((resolved, key) => resolved?.[key], context);
+    if (value.startsWith("{") && value.endsWith("}")) {
+        return value
+            .slice(1, -1)
+            .split(".")
+            .reduce((resolved, key) => resolved?.[key], context);
     }
 
     try {
         const parsedValue = JSON.parse(value);
-        if (typeof parsedValue === 'string' || typeof parsedValue === 'number' || typeof parsedValue === 'boolean') {
+        if (
+            typeof parsedValue === "string" ||
+            typeof parsedValue === "number" ||
+            typeof parsedValue === "boolean"
+        ) {
             return parsedValue;
         }
     } catch {
@@ -65,20 +79,24 @@ export const ensureHasValidSession = async (url) => {
     }
 
     const discriminator = await fetchSessionDiscriminator();
-    const ssoUrl = new URL(`rest/tcsso/v1/login?discriminator=${discriminator}`, url);
+    const ssoUrl = new URL("rest/tcsso/v1/login", url);
+    ssoUrl.searchParams.set("discriminator", discriminator);
     await openPopup(ssoUrl);
 
-    if (!await hasValidSession(url)) {
-        throw new MendixEmbeddedError('Unable to login to the Mendix application.', 'LOGIN_FAILED');
+    if (!(await hasValidSession(url))) {
+        throw new MendixEmbeddedError(
+            "Unable to login to the Mendix application.",
+            "LOGIN_FAILED",
+        );
     }
 };
 
 const fetchSessionDiscriminator = async () => {
     try {
-        const response = await fetch('/getSessionDiscriminator', {
+        const response = await fetch("/getSessionDiscriminator", {
             headers: {
-                Accept: 'text/plain'
-            }
+                Accept: "text/plain",
+            },
         });
 
         if (!response.ok) {
@@ -87,19 +105,24 @@ const fetchSessionDiscriminator = async () => {
 
         return await response.text();
     } catch {
-        throw new MendixEmbeddedError('Failed to retrieve session discriminator.', 'SESSION_DISCRIMINATOR_ERROR');
+        throw new MendixEmbeddedError(
+            "Failed to retrieve session discriminator.",
+            "SESSION_DISCRIMINATOR_ERROR",
+        );
     }
 };
 
-
 const hasValidSession = async (url) => {
     try {
-        const response = await fetch(new URL('rest/tcsso/v1/validate-session', url), { credentials: 'include' });
+        const response = await fetch(
+            new URL("rest/tcsso/v1/validate-session", url),
+            { credentials: "include" },
+        );
 
         if (response.status === 404) {
             throw new MendixEmbeddedError(
                 `Cannot reach the Mendix application at ${url}`,
-                'MENDIX_NOT_FOUND'
+                "MENDIX_NOT_FOUND",
             );
         }
 
@@ -109,7 +132,7 @@ const hasValidSession = async (url) => {
 
         return Boolean(await response.json());
     } catch (error) {
-        if (error.code === 'POPUP_BLOCKED' || error.code === 'MENDIX_NOT_FOUND') {
+        if (error.code === "POPUP_BLOCKED" || error.code === "MENDIX_NOT_FOUND") {
             throw error;
         }
 
@@ -120,13 +143,13 @@ const hasValidSession = async (url) => {
 const openPopup = async (url) => {
     if (!document.hasFocus?.()) {
         await new Promise((resolve) => {
-            window.addEventListener('focus', resolve, { once: true });
+            window.addEventListener("focus", resolve, { once: true });
         });
     }
 
-    const popup = window.open(url, 'Teamcenter SSO', 'width=200,height=300');
+    const popup = window.open(url, "Teamcenter SSO", "width=200,height=300");
     if (!popup) {
-        throw new MendixEmbeddedError('Popup blocked.', 'POPUP_BLOCKED');
+        throw new MendixEmbeddedError("Popup blocked.", "POPUP_BLOCKED");
     }
 
     popup.focus?.();
@@ -152,7 +175,11 @@ const openPopup = async (url) => {
 
         closeTimeoutId = window.setTimeout(() => {
             popup.close();
-            settle(() => reject(new MendixEmbeddedError('The sign-in timed out.', 'POPUP_TIMEOUT')));
+            settle(() =>
+                reject(
+                    new MendixEmbeddedError("The sign-in timed out.", "POPUP_TIMEOUT"),
+                ),
+            );
         }, POPUP_TIMEOUT);
 
         pollForClose();

@@ -3,12 +3,12 @@
         <aw-panel-section caption="An Error Occurred" collapsed="disabled">
             <span>We encountered an unexpected error. Please try again or contact support if the problem
                 persists.</span>
-            <aw-panel-section caption="Error Details" collapsed="disabled" exist-when="subPanelContext.errorMessage">
-                <span>{{ subPanelContext.errorMessage }}</span>
+            <aw-panel-section caption="Error Details" collapsed="disabled" exist-when="props.errorMessage">
+                <span>{{ props.errorMessage }}</span>
             </aw-panel-section>
         </aw-panel-section>
     </aw-panel-body>
     <aw-panel-footer>
-        <aw-button action="subPanelContext.retry">Retry</aw-button>
+        <aw-button action="props.retry">Retry</aw-button>
     </aw-panel-footer>
 </aw-panel>

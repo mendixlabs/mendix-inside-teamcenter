@@ -1,0 +1,9 @@
+<div class="aw-layout-flexColumn">
+    <div ref="data.containerRef" class="aw-layout-flexColumn" hidden="{{conditions.hasError}}"></div>
+
+    <popup-blocked exist-when="conditions.isPopupBlocked" retry="actions.loadMendix">
+    </popup-blocked>
+
+    <general-error exist-when="conditions.hasGeneralError" error-message="data.errorMessage" retry="actions.loadMendix">
+    </general-error>
+</div>
