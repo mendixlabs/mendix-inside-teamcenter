@@ -75,7 +75,7 @@ Once added, the card can be placed in the layout handler grid.
 
 ### Disabling authentication
 
-The component validates the Mendix session and starts Teamcenter SSO when needed. To disable authentication, remove the session check from `mx-in-tc/src/assets/js/mendixEmbeddedService.js`:
+The component validates the Mendix session and starts Teamcenter SSO when needed. To disable authentication, remove the session check from `mx-in-tc/src/js/mendixEmbeddedService.js`:
 
 ```diff
 -            await ensureHasValidSession(mendixUrl);
