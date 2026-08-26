@@ -30,6 +30,7 @@ export const getMendixConfiguration = (props) => {
     const parameters = Array.from(url.searchParams);
 
     url.search = "";
+    url.hash = "";
     if (!url.pathname.endsWith("/")) {
         url.pathname += "/";
     }

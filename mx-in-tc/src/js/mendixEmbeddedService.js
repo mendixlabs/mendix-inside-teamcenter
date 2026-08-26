@@ -6,13 +6,8 @@ import {
 } from "./mendixEmbeddedUtils";
 
 const RELOAD_EVENT = "embedded-app-reload";
-const CLEAR_ERROR_RESULT = { errorCode: "", errorMessage: "" };
 
 const stateByContainerRef = new WeakMap();
-const hasConfigurationChanged = (containerRef, configurationKey) =>
-  stateByContainerRef.get(containerRef)?.configurationKey !== configurationKey;
-const isCurrentLoad = (containerRef, state) =>
-  stateByContainerRef.get(containerRef) === state;
 
 export const loadMendix = async (
   containerRef,
@@ -20,8 +15,10 @@ export const loadMendix = async (
   subPanelContext,
   context,
   reloadAction,
+  dispatch,
 ) => {
   let state;
+  const isCurrentLoad = () => stateByContainerRef.get(containerRef) === state;
 
   try {
     const { url, parameters: parameterMappings } = getMendixConfiguration({
@@ -31,7 +28,10 @@ export const loadMendix = async (
     const parameters = getMendixParameters(context, parameterMappings);
 
     const configurationKey = JSON.stringify({ url, parameters });
-    if (!hasConfigurationChanged(containerRef, configurationKey)) {
+    if (
+      stateByContainerRef.get(containerRef)?.configurationKey ===
+      configurationKey
+    ) {
       return;
     }
 
@@ -39,14 +39,14 @@ export const loadMendix = async (
 
     state = { configurationKey };
     stateByContainerRef.set(containerRef, state);
+    dispatch({ path: "data.error", value: null });
 
     await ensureHasValidSession(url);
 
-    const app = await import(
-      /* webpackIgnore: true */ `${url}dist/embedded-index.js`
-    );
+    const embeddedAppUrl = new URL("dist/embedded-index.js", url).toString();
+    const app = await import(/* webpackIgnore: true */ embeddedAppUrl);
 
-    if (!isCurrentLoad(containerRef, state)) {
+    if (!isCurrentLoad()) {
       return;
     }
 
@@ -64,7 +64,7 @@ export const loadMendix = async (
       parameters,
     });
 
-    if (!isCurrentLoad(containerRef, state)) {
+    if (!isCurrentLoad()) {
       unmount?.();
       return;
     }
@@ -79,19 +79,19 @@ export const loadMendix = async (
       container.removeEventListener(RELOAD_EVENT, onReload);
       unmount?.();
     };
-
-    return CLEAR_ERROR_RESULT;
   } catch (error) {
-    // A superseded load must not overwrite the outcome of the load that replaced it.
-    if (state && !isCurrentLoad(containerRef, state)) {
+    if (state && !isCurrentLoad()) {
       return;
     }
 
     mendixCleanupFunction(containerRef);
-    return {
-      errorCode: error?.code ?? "UNEXPECTED_ERROR",
-      errorMessage: error?.message ?? "An unexpected error occurred.",
-    };
+    dispatch({
+      path: "data.error",
+      value: {
+        code: error?.code ?? "UNEXPECTED_ERROR",
+        message: error?.message ?? "An unexpected error occurred.",
+      },
+    });
   }
 };
 
@@ -100,3 +100,5 @@ export const mendixCleanupFunction = (containerRef) => {
   stateByContainerRef.delete(containerRef);
   state?.cleanup?.();
 };
+
+export const reloadPage = () => window.location.reload();

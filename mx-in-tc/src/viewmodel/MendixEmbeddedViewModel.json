@@ -7,8 +7,7 @@
     "containerRef": {
       "current": null
     },
-    "errorCode": "",
-    "errorMessage": ""
+    "error": null
   },
   "actions": {
     "loadMendix": {
@@ -20,11 +19,8 @@
         "config": "{{props.config}}",
         "subPanelContext": "{{props.subPanelContext}}",
         "context": "{{ctx}}",
-        "reloadAction": "{{actions.loadMendix}}"
-      },
-      "outputData": {
-        "errorCode": "errorCode",
-        "errorMessage": "errorMessage"
+        "reloadAction": "{{actions.loadMendix}}",
+        "dispatch": "{{data.dispatch}}"
       }
     },
     "cleanup": {
@@ -34,17 +30,19 @@
       "inputData": {
         "containerRef": "{{data.containerRef}}"
       }
+    },
+    "reload": {
+      "actionType": "JSFunction",
+      "method": "reloadPage",
+      "deps": "js/mendixEmbeddedService"
     }
   },
   "conditions": {
-    "hasError": {
-      "expression": "Boolean(data.errorMessage)"
-    },
     "isPopupBlocked": {
-      "expression": "data.errorCode === 'POPUP_BLOCKED'"
+      "expression": "data.error && data.error.code === 'POPUP_BLOCKED'"
     },
     "hasGeneralError": {
-      "expression": "data.errorMessage && data.errorCode !== 'POPUP_BLOCKED'"
+      "expression": "data.error && data.error.code !== 'POPUP_BLOCKED'"
     }
   },
   "lifecycleHooks": {
@@ -54,7 +52,7 @@
         "observers": [
           "props.config",
           "props.subPanelContext.declarativeKeyContext",
-          "viewModel.ctx"
+          "viewModel.ctx.selected"
         ]
       }
     ],
