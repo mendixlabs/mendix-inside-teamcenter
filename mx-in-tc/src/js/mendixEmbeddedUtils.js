@@ -8,7 +8,7 @@ export class MendixEmbeddedError extends Error {
     }
 }
 
-export const getMendixConfiguration = (props) => {
+const getMendixConfiguration = (props) => {
     const config = props.config || props.subPanelContext?.declarativeKeyContext;
     if (!config) {
         throw new MendixEmbeddedError(
@@ -27,7 +27,7 @@ export const getMendixConfiguration = (props) => {
         );
     }
 
-    const parameters = Array.from(url.searchParams);
+    const parameterMappings = Array.from(url.searchParams);
 
     url.search = "";
     url.hash = "";
@@ -37,22 +37,44 @@ export const getMendixConfiguration = (props) => {
 
     return {
         url: url.toString(),
-        parameters,
+        parameterMappings,
     };
 };
 
-export const getMendixParameters = (context, parameterMappings) =>
-    Object.fromEntries(
+export const getResolvedMendixConfiguration = (props, context) => {
+    const { url, parameterMappings } = getMendixConfiguration(props);
+    const parameters = Object.fromEntries(
         parameterMappings.map(([target, value]) => [
             target,
             resolveParameterValue(context, value),
         ]),
     );
 
+    return {
+        url,
+        parameters,
+        configurationKey: JSON.stringify({ url, parameters }),
+    };
+};
+
+export const getMendixContextPaths = (props) => {
+    const { parameterMappings } = getMendixConfiguration(props);
+    return Array.from(
+        new Set(
+            parameterMappings
+                .map(([, value]) => getContextPath(value))
+                .filter(Boolean),
+        ),
+    );
+};
+
+const getContextPath = (value) =>
+    value.startsWith("{") && value.endsWith("}") ? value.slice(1, -1) : null;
+
 const resolveParameterValue = (context, value) => {
-    if (value.startsWith("{") && value.endsWith("}")) {
-        return value
-            .slice(1, -1)
+    const contextPath = getContextPath(value);
+    if (contextPath !== null) {
+        return contextPath
             .split(".")
             .reduce((resolved, key) => resolved?.[key], context);
     }

@@ -1,7 +1,6 @@
 import {
   ensureHasValidSession,
-  getMendixConfiguration,
-  getMendixParameters,
+  getResolvedMendixConfiguration,
   MendixEmbeddedError,
 } from "./mendixEmbeddedUtils";
 
@@ -21,13 +20,8 @@ export const loadMendix = async (
   const isCurrentLoad = () => stateByContainerRef.get(containerRef) === state;
 
   try {
-    const { url, parameters: parameterMappings } = getMendixConfiguration({
-      config,
-      subPanelContext,
-    });
-    const parameters = getMendixParameters(context, parameterMappings);
-
-    const configurationKey = JSON.stringify({ url, parameters });
+    const { url, parameters, configurationKey } =
+      getResolvedMendixConfiguration({ config, subPanelContext }, context);
     if (
       stateByContainerRef.get(containerRef)?.configurationKey ===
       configurationKey

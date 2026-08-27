@@ -1,7 +1,12 @@
 {
   "schemaVersion": "1.0.0",
   "ctx": {
-    "selected": null
+    "mendixContext": {
+      "parser": {
+        "method": "getMendixContextDerivedState",
+        "deps": "js/mendixEmbeddedContextService"
+      }
+    }
   },
   "data": {
     "containerRef": {
@@ -18,7 +23,7 @@
         "containerRef": "{{data.containerRef}}",
         "config": "{{props.config}}",
         "subPanelContext": "{{props.subPanelContext}}",
-        "context": "{{ctx}}",
+        "context": "{{ctx.mendixContext[0]}}",
         "reloadAction": "{{actions.loadMendix}}",
         "dispatch": "{{data.dispatch}}"
       }
@@ -52,7 +57,7 @@
         "observers": [
           "props.config",
           "props.subPanelContext.declarativeKeyContext",
-          "viewModel.ctx.selected"
+          "viewModel.ctx.mendixContext.0"
         ]
       }
     ],

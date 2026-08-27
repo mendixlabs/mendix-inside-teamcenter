@@ -84,8 +84,9 @@ The component validates the Mendix session and starts Teamcenter SSO when needed
 Also remove `ensureHasValidSession` from the import in the same file:
 
 ```diff
--import { ensureHasValidSession, getMendixConfiguration, getMendixParameters } from './mendixEmbeddedUtils';
-+import { getMendixConfiguration, getMendixParameters } from './mendixEmbeddedUtils';
+-  ensureHasValidSession,
+   getResolvedMendixConfiguration,
+   MendixEmbeddedError,
 ```
 
 Only disable authentication when the Mendix application is intentionally accessible without Teamcenter SSO, such as in a local development environment.
