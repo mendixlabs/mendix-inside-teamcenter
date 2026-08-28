@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.0.0",
+  "ctx": {
+    "mendixContext": {
+      "parser": {
+        "method": "getMendixContextDerivedState",
+        "deps": "js/mendixEmbeddedContextService"
+      }
+    }
+  },
+  "data": {
+    "containerRef": {
+      "current": null
+    },
+    "error": null
+  },
+  "actions": {
+    "loadMendix": {
+      "actionType": "JSFunctionAsync",
+      "method": "loadMendix",
+      "deps": "js/mendixEmbeddedService",
+      "inputData": {
+        "containerRef": "{{data.containerRef}}",
+        "config": "{{props.config}}",
+        "subPanelContext": "{{props.subPanelContext}}",
+        "context": "{{ctx.mendixContext[0]}}",
+        "reloadAction": "{{actions.loadMendix}}",
+        "dispatch": "{{data.dispatch}}"
+      }
+    },
+    "cleanup": {
+      "actionType": "JSFunction",
+      "method": "mendixCleanupFunction",
+      "deps": "js/mendixEmbeddedService",
+      "inputData": {
+        "containerRef": "{{data.containerRef}}"
+      }
+    },
+    "reload": {
+      "actionType": "JSFunction",
+      "method": "reloadPage",
+      "deps": "js/mendixEmbeddedService"
+    }
+  },
+  "conditions": {
+    "isPopupBlocked": {
+      "expression": "data.error && data.error.code === 'POPUP_BLOCKED'"
+    },
+    "hasGeneralError": {
+      "expression": "data.error && data.error.code !== 'POPUP_BLOCKED'"
+    }
+  },
+  "lifecycleHooks": {
+    "onUpdate": [
+      {
+        "action": "loadMendix",
+        "observers": [
+          "props.config",
+          "props.subPanelContext.declarativeKeyContext",
+          "viewModel.ctx.mendixContext.0"
+        ]
+      }
+    ],
+    "onUnmount": "cleanup"
+  },
+  "onEvent": [],
+  "i18n": {},
+  "messages": {},
+  "props": {
+    "config": {
+      "type": "string"
+    },
+    "subPanelContext": {
+      "type": "object"
+    }
+  }
+}

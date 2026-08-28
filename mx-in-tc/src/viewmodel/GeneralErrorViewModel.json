@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "props": {
+    "error-message": {
+      "type": "string"
+    },
+    "reload": {
+      "type": "action"
+    }
+  }
+}
