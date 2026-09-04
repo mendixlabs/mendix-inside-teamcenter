@@ -78,7 +78,6 @@
       {
         "action": "loadMendix",
         "observers": [
-          "props.config",
           "props.subPanelContext.declarativeKeyContext",
           "viewModel.ctx.mendixContext.0"
         ]
