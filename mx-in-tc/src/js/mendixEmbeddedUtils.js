@@ -83,13 +83,13 @@ const resolveParameterValue = ( context, value ) => {
         const parsedValue = JSON.parse( value );
         if (
             typeof parsedValue === 'string' ||
-            typeof parsedValue === 'number' ||
-            typeof parsedValue === 'boolean'
+      typeof parsedValue === 'number' ||
+      typeof parsedValue === 'boolean'
         ) {
             return parsedValue;
         }
     } catch {
-        // Values that are not valid JSON primitives are treated as plain string literals.
+    // Values that are not valid JSON primitives are treated as plain string literals.
         return value;
     }
 
@@ -104,7 +104,7 @@ export const ensureHasValidSession = async( url ) => {
     const discriminator = await fetchSessionDiscriminator();
     const ssoUrl = new URL( 'rest/tcsso/v1/login', url );
     ssoUrl.searchParams.set( 'discriminator', discriminator );
-    await openPopup( ssoUrl );
+    await openPopup( ssoUrl, () => hasValidSession( url ) );
 
     if ( !await hasValidSession( url ) ) {
         throw new MendixEmbeddedError(
@@ -163,7 +163,7 @@ const hasValidSession = async( url ) => {
     }
 };
 
-const openPopup = async( url ) => {
+const openPopup = async( url, isComplete ) => {
     if ( !document.hasFocus?.() ) {
         await new Promise( ( resolve ) => {
             window.addEventListener( 'focus', resolve, { once: true } );
@@ -175,29 +175,39 @@ const openPopup = async( url ) => {
         throw new MendixEmbeddedError( 'Popup blocked.', 'POPUP_BLOCKED' );
     }
 
-    popup.focus?.();
-
     return new Promise( ( resolve, reject ) => {
-        let closeTimeoutId;
+        let settled = false;
         let pollTimeoutId;
+        let popupTimeoutId;
 
         const settle = ( callback ) => {
-            window.clearTimeout( closeTimeoutId );
-            window.clearTimeout( pollTimeoutId );
-            callback();
-        };
-
-        const pollForClose = () => {
-            if ( popup.closed ) {
-                settle( resolve );
+            if ( settled ) {
                 return;
             }
 
-            pollTimeoutId = window.setTimeout( pollForClose, 200 );
+            settled = true;
+            window.clearTimeout( pollTimeoutId );
+            window.clearTimeout( popupTimeoutId );
+            callback();
         };
 
-        closeTimeoutId = window.setTimeout( () => {
-            popup.close();
+        const pollForCompletion = async() => {
+            try {
+                if ( await isComplete() ) {
+                    settle( resolve );
+                    return;
+                }
+            } catch ( error ) {
+                settle( () => reject( error ) );
+                return;
+            }
+
+            if ( !settled ) {
+                pollTimeoutId = window.setTimeout( pollForCompletion, 200 );
+            }
+        };
+
+        popupTimeoutId = window.setTimeout( () => {
             settle( () =>
                 reject(
                     new MendixEmbeddedError( 'The sign-in timed out.', 'POPUP_TIMEOUT' )
@@ -205,6 +215,6 @@ const openPopup = async( url ) => {
             );
         }, POPUP_TIMEOUT );
 
-        pollForClose();
+        pollForCompletion();
     } );
 };
