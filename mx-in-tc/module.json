@@ -1,5 +1,13 @@
 {
     "name": "mx-in-tc",
-    "description": "",
-    "version": "0.0.1"
+    "description": "Contains the MendixEmbedded component, which is used to embed Mendix applications inside Teamcenter",
+    "version": "0.0.1",
+    "_internal": {
+        "ownershipInfo": {
+            "team": "UFC",
+            "ART": "Runtime & Mobile",
+            "valueStream": "AppDev",
+            "segment": "Mendix"
+        }
+    }
 }

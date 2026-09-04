@@ -1,4 +1,7 @@
 {
     "name": "mx-in-tc",
-    "modules": ["mx-in-tc"]
+    "zipFile": "mxtc_aws2stage.zip",
+    "kitDeps": ["afx"],
+    "modules": ["mx-in-tc"],
+    "level": 5
 }
