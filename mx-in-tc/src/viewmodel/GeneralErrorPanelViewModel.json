@@ -1,0 +1,25 @@
+{
+    "schemaVersion": "1.0.0",
+    "i18n": {
+        "errorOccurred": [
+            "mxInTcMessages"
+        ],
+        "unexpectedErrorDescription": [
+            "mxInTcMessages"
+        ],
+        "errorDetails": [
+            "mxInTcMessages"
+        ],
+        "reload": [
+            "mxInTcMessages"
+        ]
+    },
+    "props": {
+        "error-message": {
+            "type": "string"
+        },
+        "reload": {
+            "type": "action"
+        }
+    }
+}
