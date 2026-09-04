@@ -12,20 +12,33 @@
     "containerRef": {
       "current": null
     },
-    "error": null
+    "error": null,
+    "loadRequestId": null
   },
   "actions": {
     "loadMendix": {
+      "actionType": "JSFunction",
+      "method": "requestMendixLoad",
+      "deps": "js/mendixEmbeddedService",
+      "outputData": {
+        "error": "error",
+        "loadRequestId": "loadRequestId"
+      }
+    },
+    "mountMendix": {
       "actionType": "JSFunctionAsync",
-      "method": "loadMendix",
+      "method": "mountMendix",
       "deps": "js/mendixEmbeddedService",
       "inputData": {
         "containerRef": "{{data.containerRef}}",
+        "loadRequestId": "{{data.loadRequestId}}",
         "config": "{{props.config}}",
         "subPanelContext": "{{props.subPanelContext}}",
         "context": "{{ctx.mendixContext[0]}}",
-        "reloadAction": "{{actions.loadMendix}}",
-        "dispatch": "{{data.dispatch}}"
+        "reloadAction": "{{actions.loadMendix}}"
+      },
+      "outputData": {
+        "error": "error"
       }
     },
     "cleanup": {
@@ -58,6 +71,12 @@
           "props.config",
           "props.subPanelContext.declarativeKeyContext",
           "viewModel.ctx.mendixContext.0"
+        ]
+      },
+      {
+        "action": "mountMendix",
+        "observers": [
+          "viewModel.data.loadRequestId"
         ]
       }
     ],

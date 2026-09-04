@@ -7,15 +7,25 @@ import {
 const RELOAD_EVENT = 'embedded-app-reload';
 
 const stateByContainerRef = new WeakMap();
+let loadRequestCounter = 0;
 
-export const loadMendix = async(
+export const requestMendixLoad = () => ( {
+    error: null,
+    loadRequestId: loadRequestCounter += 1
+} );
+
+export const mountMendix = async(
     containerRef,
+    loadRequestId,
     config,
     subPanelContext,
     context,
-    reloadAction,
-    dispatch
+    reloadAction
 ) => {
+    if ( loadRequestId === null ) {
+        return;
+    }
+
     let state;
     const isCurrentLoad = () => stateByContainerRef.get( containerRef ) === state;
 
@@ -33,7 +43,6 @@ export const loadMendix = async(
 
         state = { configurationKey };
         stateByContainerRef.set( containerRef, state );
-        dispatch( { path: 'data.error', value: null } );
 
         await ensureHasValidSession( url );
 
@@ -79,13 +88,12 @@ export const loadMendix = async(
         }
 
         mendixCleanupFunction( containerRef );
-        dispatch( {
-            path: 'data.error',
-            value: {
+        return {
+            error: {
                 code: error?.code ?? 'UNEXPECTED_ERROR',
                 message: error?.message ?? 'An unexpected error occurred.'
             }
-        } );
+        };
     }
 };
 
