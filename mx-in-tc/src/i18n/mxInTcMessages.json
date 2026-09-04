@@ -1,0 +1,22 @@
+{
+    "errorOccurred": "An Error Occurred",
+    "unexpectedErrorDescription": "We encountered an unexpected error. Please try again or contact support if the problem persists.",
+    "errorDetails": "Error Details",
+    "reload": "Reload",
+    "allowPopups": "Allow Popups to Continue",
+    "popupPurpose": "Teamcenter opens a separate sign-in popup to connect to the embedded Mendix application.",
+    "popupBlockedInstructions": "Your browser blocked that popup. Allow popups for this site, then reopen the sign-in flow.",
+    "enablePopups": "How to Enable Popups",
+    "popupStepOpenSettings": "Click the popup blocker icon in the address bar.",
+    "popupStepAllow": "Select the option to always allow popups for this site.",
+    "popupStepContinue": "Choose Continue below to reopen the sign-in window.",
+    "continue": "Continue",
+    "missingConfiguration": "A Mendix application URL is required.",
+    "invalidUrl": "The Mendix application URL is invalid.",
+    "containerNotFound": "Unable to find the Mendix application container.",
+    "loginFailed": "Unable to sign in to the Mendix application.",
+    "sessionDiscriminatorError": "Failed to retrieve the session discriminator.",
+    "mendixNotFound": "Cannot reach the Mendix application.",
+    "popupTimeout": "The sign-in timed out.",
+    "unexpectedError": "An unexpected error occurred."
+}

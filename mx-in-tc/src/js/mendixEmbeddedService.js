@@ -20,7 +20,8 @@ export const mountMendix = async(
     config,
     subPanelContext,
     context,
-    reloadAction
+    reloadAction,
+    errorMessages
 ) => {
     if ( loadRequestId === null ) {
         return;
@@ -88,10 +89,11 @@ export const mountMendix = async(
         }
 
         mendixCleanupFunction( containerRef );
+        const errorCode = error?.code ?? 'UNEXPECTED_ERROR';
         return {
             error: {
-                code: error?.code ?? 'UNEXPECTED_ERROR',
-                message: error?.message ?? 'An unexpected error occurred.'
+                code: errorCode,
+                message: errorMessages[errorCode] ?? errorMessages.UNEXPECTED_ERROR
             }
         };
     }

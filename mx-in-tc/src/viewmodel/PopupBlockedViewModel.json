@@ -1,5 +1,31 @@
 {
   "schemaVersion": "1.0.0",
+  "i18n": {
+    "allowPopups": [
+      "mxInTcMessages"
+    ],
+    "popupPurpose": [
+      "mxInTcMessages"
+    ],
+    "popupBlockedInstructions": [
+      "mxInTcMessages"
+    ],
+    "enablePopups": [
+      "mxInTcMessages"
+    ],
+    "popupStepOpenSettings": [
+      "mxInTcMessages"
+    ],
+    "popupStepAllow": [
+      "mxInTcMessages"
+    ],
+    "popupStepContinue": [
+      "mxInTcMessages"
+    ],
+    "continue": [
+      "mxInTcMessages"
+    ]
+  },
   "props": {
     "retry": {
       "type": "action"

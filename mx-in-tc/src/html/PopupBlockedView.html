@@ -1,19 +1,19 @@
 <aw-panel>
     <aw-panel-body>
-        <aw-panel-section caption="Allow Popups to Continue" collapsed="disabled">
-            <p>Teamcenter opens a separate sign-in popup to connect to the embedded Mendix application.</p>
-            <p>Your browser blocked that popup. Allow popups for this site, then reopen the sign-in flow.</p>
+        <aw-panel-section caption="{{i18n.allowPopups}}" collapsed="disabled">
+            <p>{{i18n.popupPurpose}}</p>
+            <p>{{i18n.popupBlockedInstructions}}</p>
 
-            <aw-panel-section caption="How to Enable Popups" collapsed="disabled">
+            <aw-panel-section caption="{{i18n.enablePopups}}" collapsed="disabled">
                 <ol style="list-style-type: decimal; padding-left: 1.5rem;">
-                    <li>Click the popup blocker icon in the address bar.</li>
-                    <li>Select the option to always allow popups for this site.</li>
-                    <li>Choose Continue below to reopen the sign-in window.</li>
+                    <li>{{i18n.popupStepOpenSettings}}</li>
+                    <li>{{i18n.popupStepAllow}}</li>
+                    <li>{{i18n.popupStepContinue}}</li>
                 </ol>
             </aw-panel-section>
         </aw-panel-section>
     </aw-panel-body>
     <aw-panel-footer>
-        <aw-button action="props.retry">Continue</aw-button>
+        <aw-button action="props.retry">{{i18n.continue}}</aw-button>
     </aw-panel-footer>
 </aw-panel>

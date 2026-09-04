@@ -35,7 +35,17 @@
         "config": "{{props.config}}",
         "subPanelContext": "{{props.subPanelContext}}",
         "context": "{{ctx.mendixContext[0]}}",
-        "reloadAction": "{{actions.loadMendix}}"
+        "reloadAction": "{{actions.loadMendix}}",
+        "errorMessages": {
+          "MISSING_CONFIGURATION": "{{i18n.missingConfiguration}}",
+          "INVALID_URL": "{{i18n.invalidUrl}}",
+          "CONTAINER_NOT_FOUND": "{{i18n.containerNotFound}}",
+          "LOGIN_FAILED": "{{i18n.loginFailed}}",
+          "SESSION_DISCRIMINATOR_ERROR": "{{i18n.sessionDiscriminatorError}}",
+          "MENDIX_NOT_FOUND": "{{i18n.mendixNotFound}}",
+          "POPUP_TIMEOUT": "{{i18n.popupTimeout}}",
+          "UNEXPECTED_ERROR": "{{i18n.unexpectedError}}"
+        }
       },
       "outputData": {
         "error": "error"
@@ -83,7 +93,32 @@
     "onUnmount": "cleanup"
   },
   "onEvent": [],
-  "i18n": {},
+  "i18n": {
+    "missingConfiguration": [
+      "mxInTcMessages"
+    ],
+    "invalidUrl": [
+      "mxInTcMessages"
+    ],
+    "containerNotFound": [
+      "mxInTcMessages"
+    ],
+    "loginFailed": [
+      "mxInTcMessages"
+    ],
+    "sessionDiscriminatorError": [
+      "mxInTcMessages"
+    ],
+    "mendixNotFound": [
+      "mxInTcMessages"
+    ],
+    "popupTimeout": [
+      "mxInTcMessages"
+    ],
+    "unexpectedError": [
+      "mxInTcMessages"
+    ]
+  },
   "messages": {},
   "props": {
     "config": {
