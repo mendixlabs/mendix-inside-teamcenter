@@ -12,10 +12,34 @@
         ],
         "reload": [
             "mxInTcMessages"
+        ],
+        "MISSING_CONFIGURATION": [
+            "mxInTcMessages"
+        ],
+        "INVALID_URL": [
+            "mxInTcMessages"
+        ],
+        "INVALID_PARAMETER": [
+            "mxInTcMessages"
+        ],
+        "CONTAINER_NOT_FOUND": [
+            "mxInTcMessages"
+        ],
+        "SESSION_DISCRIMINATOR_ERROR": [
+            "mxInTcMessages"
+        ],
+        "MENDIX_NOT_FOUND": [
+            "mxInTcMessages"
+        ],
+        "POPUP_TIMEOUT": [
+            "mxInTcMessages"
+        ],
+        "UNEXPECTED_ERROR": [
+            "mxInTcMessages"
         ]
     },
     "props": {
-        "error-message": {
+        "error-code": {
             "type": "string"
         },
         "reload": {

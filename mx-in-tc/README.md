@@ -27,7 +27,7 @@ Wrap a value in braces to read it from the component `ctx` object:
 
 Mappings are always explicit: use `target={context.path}` to map a context value or `target=value` for a hardcoded value.
 
-Use dot notation inside the braces to read nested fields. For example, `modelTypeName={selected.modelType.name}` reads the value at `ctx.selected.modelType.name` and passes it as `modelTypeName`. The resolved value must be a primitive, such as a string, number, or boolean; objects and arrays are not supported as Mendix parameters. If any part of the path is unavailable, the parameter receives `undefined`.
+Use dot notation inside the braces to read nested fields. For example, `modelTypeName={selected.modelType.name}` reads the value at `ctx.selected.modelType.name` and passes it as `modelTypeName`. The resolved value must be a string, number, or boolean. If any part of the path is unavailable, the parameter receives `undefined`. Other values, including objects and arrays, produce a configuration error.
 
 Values without braces are hardcoded primitives. `true` and `false` become booleans, JSON-formatted numbers become numbers, and other values remain strings. JSON-quoted strings are also supported; encode their double quotes as `%22` in the URL. This can force a value such as `%22true%22` to remain the string `"true"` instead of becoming a boolean.
 
@@ -35,9 +35,10 @@ Values without braces are hardcoded primitives. `true` and `false` become boolea
 https://mx-in-tc-endpoint.com/?activeView={ui}&itemUID={selected.uid}&mode=edit&limit=10
 ```
 
-This passes `{ uid: ctx.selected.uid, mode: "edit", limit: 10 }`.
+This passes `{ activeView: ctx.ui, itemUID: ctx.selected.uid, mode: "edit", limit: 10 }`.
 
 The component removes these query parameters from the URL before loading Mendix. If a mapped context field is unavailable, its Mendix parameter receives `undefined`.
+
 
 ### XRT view
 
@@ -78,7 +79,7 @@ Once added, the card can be placed in the layout handler grid.
 The component validates the Mendix session and starts Teamcenter SSO when needed. To disable authentication, remove the session check from `mx-in-tc/src/js/mendixEmbeddedService.js`:
 
 ```diff
--            await ensureHasValidSession(mendixUrl);
+-        await ensureHasValidSession( url, controller.signal );
 ```
 
 Also remove `ensureHasValidSession` from the import in the same file:

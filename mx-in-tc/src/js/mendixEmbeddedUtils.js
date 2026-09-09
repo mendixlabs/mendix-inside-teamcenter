@@ -1,30 +1,27 @@
 const POPUP_TIMEOUT = 30000;
+const SESSION_POLL_INTERVAL = 1000;
 
 export class MendixEmbeddedError extends Error {
-    constructor( message, code ) {
-        super( message );
+    constructor( code ) {
+        super( code );
         this.name = 'MendixEmbeddedError';
         this.code = code;
     }
 }
 
-const getMendixConfiguration = ( props ) => {
-    const config = props.config || props.subPanelContext?.declarativeKeyContext;
+const getMendixConfiguration = ( config ) => {
     if ( !config ) {
-        throw new MendixEmbeddedError(
-            'A Mendix application URL is required.',
-            'MISSING_CONFIGURATION'
-        );
+        throw new MendixEmbeddedError( 'MISSING_CONFIGURATION' );
     }
 
     let url;
     try {
         url = new URL( config );
+        if ( url.protocol !== 'http:' && url.protocol !== 'https:' ) {
+            throw new Error();
+        }
     } catch {
-        throw new MendixEmbeddedError(
-            'The Mendix application URL is invalid.',
-            'INVALID_URL'
-        );
+        throw new MendixEmbeddedError( 'INVALID_URL' );
     }
 
     const parameterMappings = Array.from( url.searchParams );
@@ -41,14 +38,19 @@ const getMendixConfiguration = ( props ) => {
     };
 };
 
-export const getResolvedMendixConfiguration = ( props, context ) => {
-    const { url, parameterMappings } = getMendixConfiguration( props );
+export const getResolvedMendixConfiguration = ( config, context ) => {
+    const { url, parameterMappings } = getMendixConfiguration( config );
     const parameters = Object.fromEntries(
         parameterMappings.map( ( [ target, value ] ) => [
             target,
             resolveParameterValue( context, value )
         ] )
     );
+
+    if ( Object.values( parameters ).some( value =>
+        value !== undefined && ![ 'string', 'number', 'boolean' ].includes( typeof value ) ) ) {
+        throw new MendixEmbeddedError( 'INVALID_PARAMETER' );
+    }
 
     return {
         url,
@@ -57,8 +59,8 @@ export const getResolvedMendixConfiguration = ( props, context ) => {
     };
 };
 
-export const getMendixContextPaths = ( props ) => {
-    const { parameterMappings } = getMendixConfiguration( props );
+export const getMendixContextPaths = ( config ) => {
+    const { parameterMappings } = getMendixConfiguration( config );
     return Array.from(
         new Set(
             parameterMappings
@@ -83,40 +85,33 @@ const resolveParameterValue = ( context, value ) => {
         const parsedValue = JSON.parse( value );
         if (
             typeof parsedValue === 'string' ||
-      typeof parsedValue === 'number' ||
-      typeof parsedValue === 'boolean'
+            typeof parsedValue === 'number' ||
+            typeof parsedValue === 'boolean'
         ) {
             return parsedValue;
         }
     } catch {
-    // Values that are not valid JSON primitives are treated as plain string literals.
-        return value;
+        // Values that are not valid JSON primitives are plain string literals.
     }
 
     return value;
 };
 
-export const ensureHasValidSession = async( url ) => {
-    if ( await hasValidSession( url ) ) {
+export const ensureHasValidSession = async( url, signal ) => {
+    if ( await hasValidSession( url, signal ) ) {
         return;
     }
 
-    const discriminator = await fetchSessionDiscriminator();
+    const discriminator = await fetchSessionDiscriminator( signal );
     const ssoUrl = new URL( 'rest/tcsso/v1/login', url );
     ssoUrl.searchParams.set( 'discriminator', discriminator );
-    await openPopup( ssoUrl, () => hasValidSession( url ) );
-
-    if ( !await hasValidSession( url ) ) {
-        throw new MendixEmbeddedError(
-            'Unable to login to the Mendix application.',
-            'LOGIN_FAILED'
-        );
-    }
+    await openPopup( ssoUrl, () => hasValidSession( url, signal ), signal );
 };
 
-const fetchSessionDiscriminator = async() => {
+const fetchSessionDiscriminator = async( signal ) => {
     try {
         const response = await fetch( '/getSessionDiscriminator', {
+            signal,
             headers: {
                 Accept: 'text/plain'
             }
@@ -127,60 +122,50 @@ const fetchSessionDiscriminator = async() => {
         }
 
         return await response.text();
-    } catch {
-        throw new MendixEmbeddedError(
-            'Failed to retrieve session discriminator.',
-            'SESSION_DISCRIMINATOR_ERROR'
-        );
+    } catch ( error ) {
+        if ( signal?.aborted ) {
+            throw error;
+        }
+        throw new MendixEmbeddedError( 'SESSION_DISCRIMINATOR_ERROR' );
     }
 };
 
-const hasValidSession = async( url ) => {
+const hasValidSession = async( url, signal ) => {
     try {
         const response = await fetch(
             new URL( 'rest/tcsso/v1/validate-session', url ),
-            { credentials: 'include' }
+            { credentials: 'include', signal }
         );
 
-        if ( response.status === 404 ) {
-            throw new MendixEmbeddedError(
-                `Cannot reach the Mendix application at ${url}`,
-                'MENDIX_NOT_FOUND'
-            );
-        }
-
-        if ( !response.ok ) {
+        if ( response.status === 401 || response.status === 403 ) {
             return false;
         }
 
-        return Boolean( await response.json() );
+        if ( !response.ok ) {
+            throw new Error();
+        }
+
+        const valid = await response.json();
+        if ( typeof valid !== 'boolean' ) {
+            throw new Error();
+        }
+        return valid;
     } catch ( error ) {
-        if ( error.code === 'POPUP_BLOCKED' || error.code === 'MENDIX_NOT_FOUND' ) {
+        if ( signal?.aborted ) {
             throw error;
         }
 
-        return false;
+        throw new MendixEmbeddedError( 'MENDIX_NOT_FOUND' );
     }
 };
 
-const openPopup = async( url, isComplete ) => {
-    if ( !document.hasFocus?.() ) {
-        await new Promise( ( resolve ) => {
-            window.addEventListener( 'focus', resolve, { once: true } );
-        } );
-    }
-
-    const popup = window.open( url, 'Teamcenter SSO', 'width=200,height=300' );
-    if ( !popup ) {
-        throw new MendixEmbeddedError( 'Popup blocked.', 'POPUP_BLOCKED' );
-    }
-
+const openPopup = ( url, isComplete, signal ) => {
     return new Promise( ( resolve, reject ) => {
         let settled = false;
         let pollTimeoutId;
         let popupTimeoutId;
 
-        const settle = ( callback ) => {
+        const settle = ( error ) => {
             if ( settled ) {
                 return;
             }
@@ -188,33 +173,54 @@ const openPopup = async( url, isComplete ) => {
             settled = true;
             window.clearTimeout( pollTimeoutId );
             window.clearTimeout( popupTimeoutId );
-            callback();
+            window.removeEventListener( 'focus', open );
+            signal?.removeEventListener( 'abort', onAbort );
+            if ( error ) {
+                reject( error );
+            } else {
+                resolve();
+            }
         };
+
+        const onAbort = () => settle( new DOMException( 'Sign-in cancelled.', 'AbortError' ) );
 
         const pollForCompletion = async() => {
             try {
                 if ( await isComplete() ) {
-                    settle( resolve );
+                    settle();
                     return;
                 }
             } catch ( error ) {
-                settle( () => reject( error ) );
+                settle( error );
                 return;
             }
 
             if ( !settled ) {
-                pollTimeoutId = window.setTimeout( pollForCompletion, 200 );
+                pollTimeoutId = window.setTimeout( pollForCompletion, SESSION_POLL_INTERVAL );
             }
         };
 
-        popupTimeoutId = window.setTimeout( () => {
-            settle( () =>
-                reject(
-                    new MendixEmbeddedError( 'The sign-in timed out.', 'POPUP_TIMEOUT' )
-                )
-            );
-        }, POPUP_TIMEOUT );
+        const open = () => {
+            const popup = window.open( url, '_blank', 'width=200,height=300' );
+            if ( !popup ) {
+                settle( new MendixEmbeddedError( 'POPUP_BLOCKED' ) );
+                return;
+            }
+            popupTimeoutId = window.setTimeout( () => {
+                settle( new MendixEmbeddedError( 'POPUP_TIMEOUT' ) );
+            }, POPUP_TIMEOUT );
+            pollForCompletion();
+        };
 
-        pollForCompletion();
+        if ( signal?.aborted ) {
+            onAbort();
+            return;
+        }
+        signal?.addEventListener( 'abort', onAbort, { once: true } );
+        if ( document.hasFocus() ) {
+            open();
+        } else {
+            window.addEventListener( 'focus', open, { once: true } );
+        }
     } );
 };

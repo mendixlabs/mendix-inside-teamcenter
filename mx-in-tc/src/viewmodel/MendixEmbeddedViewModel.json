@@ -9,46 +9,28 @@
     }
   },
   "data": {
-    "containerRef": {
-      "current": null
-    },
-    "error": null,
-    "loadRequestId": null
+    "errorCode": null
   },
   "actions": {
-    "loadMendix": {
-      "actionType": "JSFunction",
-      "method": "requestMendixLoad",
+    "render": {
+      "method": "mendixEmbeddedRenderFunction",
       "deps": "js/mendixEmbeddedService",
-      "outputData": {
-        "error": "error",
-        "loadRequestId": "loadRequestId"
+      "options": {
+        "elementRefList": [ "mendixContainer" ]
       }
     },
-    "mountMendix": {
+    "loadMendix": {
       "actionType": "JSFunctionAsync",
       "method": "mountMendix",
       "deps": "js/mendixEmbeddedService",
       "inputData": {
-        "containerRef": "{{data.containerRef}}",
-        "loadRequestId": "{{data.loadRequestId}}",
-        "config": "{{props.config}}",
-        "subPanelContext": "{{props.subPanelContext}}",
+        "elementRefList": "{{parameters.elementRefList}}",
+        "config": "{{props.config || props.subPanelContext.declarativeKeyContext}}",
         "context": "{{ctx.mendixContext[0]}}",
-        "reloadAction": "{{actions.loadMendix}}",
-        "errorMessages": {
-          "MISSING_CONFIGURATION": "{{i18n.missingConfiguration}}",
-          "INVALID_URL": "{{i18n.invalidUrl}}",
-          "CONTAINER_NOT_FOUND": "{{i18n.containerNotFound}}",
-          "LOGIN_FAILED": "{{i18n.loginFailed}}",
-          "SESSION_DISCRIMINATOR_ERROR": "{{i18n.sessionDiscriminatorError}}",
-          "MENDIX_NOT_FOUND": "{{i18n.mendixNotFound}}",
-          "POPUP_TIMEOUT": "{{i18n.popupTimeout}}",
-          "UNEXPECTED_ERROR": "{{i18n.unexpectedError}}"
-        }
+        "reloadAction": "{{actions.loadMendix}}"
       },
       "outputData": {
-        "error": "error"
+        "errorCode": "errorCode"
       }
     },
     "cleanup": {
@@ -56,7 +38,7 @@
       "method": "mendixCleanupFunction",
       "deps": "js/mendixEmbeddedService",
       "inputData": {
-        "containerRef": "{{data.containerRef}}"
+        "elementRefList": "{{parameters.elementRefList}}"
       }
     },
     "reload": {
@@ -65,60 +47,14 @@
       "deps": "js/mendixEmbeddedService"
     }
   },
-  "conditions": {
-    "isPopupBlocked": {
-      "expression": "data.error && data.error.code === 'POPUP_BLOCKED'"
-    },
-    "hasGeneralError": {
-      "expression": "data.error && data.error.code !== 'POPUP_BLOCKED'"
-    }
-  },
   "lifecycleHooks": {
-    "onUpdate": [
-      {
-        "action": "loadMendix",
-        "observers": [
-          "props.subPanelContext.declarativeKeyContext",
-          "viewModel.ctx.mendixContext.0"
-        ]
-      },
-      {
-        "action": "mountMendix",
-        "observers": [
-          "viewModel.data.loadRequestId"
-        ]
-      }
-    ],
+    "render": "render",
+    "onUpdate": {
+      "action": "loadMendix",
+      "observers": [ "viewModel.ctx.mendixContext.0" ]
+    },
     "onUnmount": "cleanup"
   },
-  "onEvent": [],
-  "i18n": {
-    "missingConfiguration": [
-      "mxInTcMessages"
-    ],
-    "invalidUrl": [
-      "mxInTcMessages"
-    ],
-    "containerNotFound": [
-      "mxInTcMessages"
-    ],
-    "loginFailed": [
-      "mxInTcMessages"
-    ],
-    "sessionDiscriminatorError": [
-      "mxInTcMessages"
-    ],
-    "mendixNotFound": [
-      "mxInTcMessages"
-    ],
-    "popupTimeout": [
-      "mxInTcMessages"
-    ],
-    "unexpectedError": [
-      "mxInTcMessages"
-    ]
-  },
-  "messages": {},
   "props": {
     "config": {
       "type": "string"
