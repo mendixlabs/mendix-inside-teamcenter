@@ -9,23 +9,28 @@
     }
   },
   "data": {
-    "containerRef": {
-      "current": null
-    },
-    "error": null
+    "errorCode": null
   },
   "actions": {
+    "render": {
+      "method": "mendixEmbeddedRenderFunction",
+      "deps": "js/mendixEmbeddedService",
+      "options": {
+        "elementRefList": [ "mendixContainer" ]
+      }
+    },
     "loadMendix": {
       "actionType": "JSFunctionAsync",
-      "method": "loadMendix",
+      "method": "mountMendix",
       "deps": "js/mendixEmbeddedService",
       "inputData": {
-        "containerRef": "{{data.containerRef}}",
-        "config": "{{props.config}}",
-        "subPanelContext": "{{props.subPanelContext}}",
+        "elementRefList": "{{parameters.elementRefList}}",
+        "config": "{{props.config || props.subPanelContext.declarativeKeyContext}}",
         "context": "{{ctx.mendixContext[0]}}",
-        "reloadAction": "{{actions.loadMendix}}",
-        "dispatch": "{{data.dispatch}}"
+        "reloadAction": "{{actions.loadMendix}}"
+      },
+      "outputData": {
+        "errorCode": "errorCode"
       }
     },
     "cleanup": {
@@ -33,7 +38,7 @@
       "method": "mendixCleanupFunction",
       "deps": "js/mendixEmbeddedService",
       "inputData": {
-        "containerRef": "{{data.containerRef}}"
+        "elementRefList": "{{parameters.elementRefList}}"
       }
     },
     "reload": {
@@ -42,30 +47,14 @@
       "deps": "js/mendixEmbeddedService"
     }
   },
-  "conditions": {
-    "isPopupBlocked": {
-      "expression": "data.error && data.error.code === 'POPUP_BLOCKED'"
-    },
-    "hasGeneralError": {
-      "expression": "data.error && data.error.code !== 'POPUP_BLOCKED'"
-    }
-  },
   "lifecycleHooks": {
-    "onUpdate": [
-      {
-        "action": "loadMendix",
-        "observers": [
-          "props.config",
-          "props.subPanelContext.declarativeKeyContext",
-          "viewModel.ctx.mendixContext.0"
-        ]
-      }
-    ],
+    "render": "render",
+    "onUpdate": {
+      "action": "loadMendix",
+      "observers": [ "viewModel.ctx.mendixContext.0" ]
+    },
     "onUnmount": "cleanup"
   },
-  "onEvent": [],
-  "i18n": {},
-  "messages": {},
   "props": {
     "config": {
       "type": "string"

@@ -1,0 +1,19 @@
+<aw-panel>
+    <aw-panel-body>
+        <aw-panel-section caption="{{i18n.allowPopups}}" collapsed="disabled">
+            <p>{{i18n.popupPurpose}}</p>
+            <p>{{i18n.popupBlockedInstructions}}</p>
+
+            <aw-panel-section caption="{{i18n.enablePopups}}" collapsed="disabled">
+                <ol style="list-style-type: decimal; padding-left: 1.5rem;">
+                    <li>{{i18n.popupStepOpenSettings}}</li>
+                    <li>{{i18n.popupStepAllow}}</li>
+                    <li>{{i18n.popupStepContinue}}</li>
+                </ol>
+            </aw-panel-section>
+        </aw-panel-section>
+    </aw-panel-body>
+    <aw-panel-footer>
+        <aw-button action="props.retry">{{i18n.continue}}</aw-button>
+    </aw-panel-footer>
+</aw-panel>

@@ -1,8 +1,0 @@
-{
-  "schemaVersion": "1.0.0",
-  "props": {
-    "retry": {
-      "type": "action"
-    }
-  }
-}

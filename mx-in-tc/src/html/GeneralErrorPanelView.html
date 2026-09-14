@@ -1,0 +1,13 @@
+<aw-panel>
+    <aw-panel-body>
+        <aw-panel-section caption="{{i18n.errorOccurred}}" collapsed="disabled">
+            <span>{{i18n.unexpectedErrorDescription}}</span>
+            <aw-panel-section caption="{{i18n.errorDetails}}" collapsed="disabled">
+                <span>{{i18n[props.errorCode] ? i18n[props.errorCode] : i18n.UNEXPECTED_ERROR}}</span>
+            </aw-panel-section>
+        </aw-panel-section>
+    </aw-panel-body>
+    <aw-panel-footer>
+        <aw-button action="props.reload">{{i18n.reload}}</aw-button>
+    </aw-panel-footer>
+</aw-panel>
