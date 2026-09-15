@@ -90,6 +90,7 @@ describe( 'mendixEmbeddedService', () => {
     describe( 'application lifecycle', () => {
         let containerRef;
         let reload;
+        let onUnmountError;
         const mount = () => mountMendix( refs( containerRef ), null, {}, reload );
 
         beforeEach( () => {
@@ -100,9 +101,15 @@ describe( 'mendixEmbeddedService', () => {
             } );
             ensureHasValidSession.mockResolvedValue();
             renderApp.mockReset();
+            onUnmountError = undefined;
         } );
 
-        afterEach( () => mendixCleanupFunction( refs( containerRef ) ) );
+        afterEach( () => {
+            mendixCleanupFunction( refs( containerRef ) );
+            if ( onUnmountError ) {
+                window.removeEventListener( 'error', onUnmountError );
+            }
+        } );
 
         it( 'deduplicates unchanged configuration and cleans up a mounted app', async() => {
             const unmount = jest.fn();
@@ -126,6 +133,27 @@ describe( 'mendixEmbeddedService', () => {
             await pending;
             expect( signal?.aborted ).toBe( true );
             expect( renderApp ).not.toHaveBeenCalled();
+        } );
+
+        it( 'detaches the app and its reload listener even if unmount throws', async() => {
+            const error = new Error( 'Unmount failed' );
+            const unmount = jest.fn( () => { throw error; } );
+            renderApp.mockReturnValue( unmount );
+            await mount();
+            const appContainer = renderApp.mock.calls[0][0];
+            // Exceptions in DOM event listeners are reported on window, not by abort().
+            onUnmountError = event => {
+                if ( event.error === error ) {
+                    event.preventDefault();
+                }
+            };
+            window.addEventListener( 'error', onUnmountError );
+            mendixCleanupFunction( refs( containerRef ) );
+            expect( containerRef.current.childElementCount ).toBe( 0 );
+            appContainer.dispatchEvent( new Event( 'embedded-app-reload' ) );
+            expect( reload ).not.toHaveBeenCalled();
+            mendixCleanupFunction( refs( containerRef ) );
+            expect( unmount ).toHaveBeenCalledTimes( 1 );
         } );
 
         it( 'isolates a slow old render from the next application', async() => {
