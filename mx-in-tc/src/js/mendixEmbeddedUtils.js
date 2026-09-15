@@ -1,3 +1,5 @@
+import soaService from 'soa/kernel/soaService';
+
 const POPUP_TIMEOUT = 30000;
 const SESSION_POLL_INTERVAL = 1000;
 
@@ -47,8 +49,13 @@ export const getResolvedMendixConfiguration = ( config, context ) => {
         ] )
     );
 
-    if ( Object.values( parameters ).some( value =>
-        value !== undefined && ![ 'string', 'number', 'boolean' ].includes( typeof value ) ) ) {
+    if (
+        Object.values( parameters ).some(
+            ( value ) =>
+                value !== undefined &&
+                ![ 'string', 'number', 'boolean' ].includes( typeof value )
+        )
+    ) {
         throw new MendixEmbeddedError( 'INVALID_PARAMETER' );
     }
 
@@ -98,14 +105,57 @@ const resolveParameterValue = ( context, value ) => {
 };
 
 export const ensureHasValidSession = async( url, signal ) => {
+    signal?.throwIfAborted();
+
     if ( await hasValidSession( url, signal ) ) {
         return;
     }
 
-    const discriminator = await fetchSessionDiscriminator( signal );
-    const ssoUrl = new URL( 'rest/tcsso/v1/login', url );
-    ssoUrl.searchParams.set( 'discriminator', discriminator );
-    await openPopup( ssoUrl, () => hasValidSession( url, signal ), signal );
+    if ( await authenticateWithAccessToken( url, signal ) ) {
+        return;
+    }
+
+    return false;
+};
+
+const authenticateWithAccessToken = async( url, signal ) => {
+    signal?.throwIfAborted();
+
+    const [ userAccessTokens, discriminator ] = await Promise.all( [
+        soaService.post(
+            'Internal-Core-2026-12-Session',
+            'getUserAccessTokens',
+            {},
+            {}
+        ),
+        fetchSessionDiscriminator( signal )
+    ] );
+
+    signal?.throwIfAborted();
+
+    const token = userAccessTokens?.clientUserAccessTokens
+        ?.find( ( entry ) => entry?.clientID === '' )
+        ?.token?.trim();
+
+    if ( !token ) {
+        return false;
+    }
+
+    const tokenUrl = new URL( 'rest/tcsso/v1/login/token', url );
+    tokenUrl.searchParams.set( 'discriminator', discriminator );
+    tokenUrl.searchParams.set( 'token', token );
+
+    const response = await fetch( tokenUrl, {
+        method: 'GET',
+        headers: { Accept: '*/*' },
+        mode: 'cors',
+        credentials: 'include',
+        signal
+    } );
+
+    signal?.throwIfAborted();
+
+    return response.json();
 };
 
 const fetchSessionDiscriminator = async( signal ) => {
@@ -121,12 +171,17 @@ const fetchSessionDiscriminator = async( signal ) => {
             throw new Error();
         }
 
-        return await response.text();
-    } catch ( error ) {
-        if ( signal?.aborted ) {
-            throw error;
+        const discriminator = await response.text();
+        if ( !discriminator.trim() ) {
+            throw new Error();
         }
-        throw new MendixEmbeddedError( 'SESSION_DISCRIMINATOR_ERROR' );
+        return discriminator;
+    } catch {
+        signal?.throwIfAborted();
+        console.warn(
+            'Session discriminator is unavailable; continuing with an empty discriminator.'
+        );
+        return '';
     }
 };
 
@@ -150,13 +205,19 @@ const hasValidSession = async( url, signal ) => {
             throw new Error();
         }
         return valid;
-    } catch ( error ) {
-        if ( signal?.aborted ) {
-            throw error;
-        }
+    } catch {
+        signal?.throwIfAborted();
 
         throw new MendixEmbeddedError( 'MENDIX_NOT_FOUND' );
     }
+};
+
+const authenticateWithPopup = async( url, signal ) => {
+    const discriminator = await fetchSessionDiscriminator( signal );
+    const ssoUrl = new URL( 'rest/tcsso/v1/login', url );
+    ssoUrl.searchParams.set( 'discriminator', discriminator );
+
+    await openPopup( ssoUrl, () => hasValidSession( url, signal ), signal );
 };
 
 const openPopup = ( url, isComplete, signal ) => {
@@ -175,14 +236,14 @@ const openPopup = ( url, isComplete, signal ) => {
             window.clearTimeout( popupTimeoutId );
             window.removeEventListener( 'focus', open );
             signal?.removeEventListener( 'abort', onAbort );
-            if ( error ) {
+            if ( error !== undefined ) {
                 reject( error );
             } else {
                 resolve();
             }
         };
 
-        const onAbort = () => settle( new DOMException( 'Sign-in cancelled.', 'AbortError' ) );
+        const onAbort = () => settle( signal.reason );
 
         const pollForCompletion = async() => {
             try {
@@ -196,7 +257,10 @@ const openPopup = ( url, isComplete, signal ) => {
             }
 
             if ( !settled ) {
-                pollTimeoutId = window.setTimeout( pollForCompletion, SESSION_POLL_INTERVAL );
+                pollTimeoutId = window.setTimeout(
+                    pollForCompletion,
+                    SESSION_POLL_INTERVAL
+                );
             }
         };
 
