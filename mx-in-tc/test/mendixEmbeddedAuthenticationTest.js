@@ -202,7 +202,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                         .mockResolvedValueOnce( discriminatorResponse )
                         .mockResolvedValueOnce( sessionResponse( true ) );
                     jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
-                    window.open.mockReturnValue( {} );
+                    window.open.mockReturnValue( { closed: true } );
 
                     await ensureHasValidSession( 'https://apps.example.com/' );
 
@@ -287,7 +287,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                         return sessionResponse( window.open.mock.calls.length > 0 );
                     } );
                     jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
-                    window.open.mockReturnValue( {} );
+                    window.open.mockReturnValue( { closed: true } );
 
                     await ensureHasValidSession( 'https://apps.example.com/' );
 
@@ -523,7 +523,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
             );
             expect( window.open ).toHaveBeenCalledWith(
                 expect.any( URL ),
-                '_blank',
+                'mxInTcSso',
                 'width=200,height=300'
             );
             expect( window.open.mock.calls[0][0].toString() ).toBe(
@@ -542,7 +542,10 @@ describe( 'mendixEmbeddedAuthentication', () => {
             beforeEach( () => {
                 jest.useFakeTimers();
                 jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
-                popup = { closed: false, close: jest.fn() };
+                popup = { closed: false, close: jest.fn(), focus: jest.fn() };
+                popup.close.mockImplementation( () => {
+                    popup.closed = true;
+                } );
                 window.open = jest.fn().mockReturnValue( popup );
                 global.fetch = jest
                     .fn()
@@ -555,26 +558,57 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     .mockResolvedValueOnce( {
                         ok: true,
                         text: async() => 'test-discriminator'
-                    } )
-                    .mockResolvedValue( sessionResponse( false ) );
+                    } );
             } );
 
-            it( 'polls once per second and stops immediately after a valid session', async() => {
-                global.fetch
-                    .mockResolvedValueOnce( sessionResponse( false ) )
-                    .mockResolvedValueOnce( sessionResponse( true ) );
+            it( 'focuses the popup and validates the session once after it closes', async() => {
+                global.fetch.mockResolvedValueOnce( sessionResponse( true ) );
                 const pending = ensureHasValidSession( 'https://apps.example.com/' );
-                await waitFor( () => expect( global.fetch ).toHaveBeenCalledTimes( 5 ) );
-                await jest.advanceTimersByTimeAsync( 500 );
-                expect( global.fetch ).toHaveBeenCalledTimes( 5 );
-                await jest.advanceTimersByTimeAsync( 500 );
+                await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
+                expect( popup.focus ).toHaveBeenCalled();
+
+                await jest.advanceTimersByTimeAsync( 1000 );
+                expect( global.fetch ).toHaveBeenCalledTimes( 4 );
+
+                popup.closed = true;
+                await jest.advanceTimersByTimeAsync( 200 );
                 await pending;
-                expect( global.fetch ).toHaveBeenCalledTimes( 6 );
+                expect( global.fetch ).toHaveBeenCalledTimes( 5 );
+                expect( global.fetch.mock.calls[4][0].pathname ).toBe(
+                    '/rest/tcsso/v1/validate-session'
+                );
                 expect( popup.close ).not.toHaveBeenCalled();
                 expect( jest.getTimerCount() ).toBe( 0 );
             } );
 
-            it( 'cancels polling and propagates the abort signal without controlling the popup', async() => {
+            it( 'reports a failed login when the popup closes without a valid session', async() => {
+                global.fetch.mockResolvedValueOnce( sessionResponse( false ) );
+                const pending = ensureHasValidSession( 'https://apps.example.com/' );
+                const rejected = expect( pending ).rejects.toMatchObject( {
+                    code: 'LOGIN_FAILED'
+                } );
+                await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
+                popup.closed = true;
+                await jest.advanceTimersByTimeAsync( 200 );
+                await rejected;
+                expect( global.fetch ).toHaveBeenCalledTimes( 5 );
+                expect( jest.getTimerCount() ).toBe( 0 );
+            } );
+
+            it( 'closes the popup and stops polling on timeout', async() => {
+                const pending = ensureHasValidSession( 'https://apps.example.com/' );
+                const rejected = expect( pending ).rejects.toMatchObject( {
+                    code: 'POPUP_TIMEOUT'
+                } );
+                await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
+                await jest.advanceTimersByTimeAsync( 30000 );
+                await rejected;
+                expect( popup.close ).toHaveBeenCalledTimes( 1 );
+                expect( global.fetch ).toHaveBeenCalledTimes( 4 );
+                expect( jest.getTimerCount() ).toBe( 0 );
+            } );
+
+            it( 'closes the popup and propagates the abort signal when cancelled', async() => {
                 const controller = new AbortController();
                 const pending = ensureHasValidSession(
                     'https://apps.example.com/',
@@ -583,15 +617,11 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 const rejected = expect( pending ).rejects.toMatchObject( {
                     name: 'AbortError'
                 } );
-                await waitFor( () => expect( global.fetch ).toHaveBeenCalledTimes( 5 ) );
+                await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
                 controller.abort();
                 await rejected;
-                expect( popup.close ).not.toHaveBeenCalled();
-                expect(
-                    global.fetch.mock.calls.every(
-                        ( [ , options ] ) => options.signal.aborted
-                    )
-                ).toBe( true );
+                expect( popup.close ).toHaveBeenCalledTimes( 1 );
+                expect( global.fetch ).toHaveBeenCalledTimes( 4 );
                 expect( jest.getTimerCount() ).toBe( 0 );
             } );
 
@@ -624,46 +654,25 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 expect( window.open ).not.toHaveBeenCalled();
             } );
 
-            it( 'stops polling on timeout without controlling the popup', async() => {
+            it( 'opens the popup once the window regains focus', async() => {
+                document.hasFocus.mockReturnValue( false );
+                global.fetch.mockResolvedValueOnce( sessionResponse( true ) );
+                const addListener = jest.spyOn( window, 'addEventListener' );
                 const pending = ensureHasValidSession( 'https://apps.example.com/' );
-                const rejected = expect( pending ).rejects.toMatchObject( {
-                    code: 'POPUP_TIMEOUT'
-                } );
-                await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
-                await jest.advanceTimersByTimeAsync( 30000 );
-                await rejected;
-                expect( popup.close ).not.toHaveBeenCalled();
-                expect( jest.getTimerCount() ).toBe( 0 );
-            } );
+                await waitFor( () =>
+                    expect( addListener ).toHaveBeenCalledWith(
+                        'focus',
+                        expect.any( Function ),
+                        { once: true }
+                    )
+                );
+                expect( window.open ).not.toHaveBeenCalled();
 
-            it( 'stops polling when the validation endpoint becomes unavailable', async() => {
-                global.fetch
-                    .mockResolvedValueOnce( sessionResponse( false ) )
-                    .mockRejectedValueOnce( new TypeError( 'Failed to fetch' ) );
-                const pending = ensureHasValidSession( 'https://apps.example.com/' );
-                const rejected = expect( pending ).rejects.toMatchObject( {
-                    code: 'MENDIX_NOT_FOUND'
-                } );
-                await waitFor( () => expect( global.fetch ).toHaveBeenCalledTimes( 5 ) );
-                await jest.advanceTimersByTimeAsync( 1000 );
-                await rejected;
-                expect( global.fetch ).toHaveBeenCalledTimes( 6 );
-                expect( jest.getTimerCount() ).toBe( 0 );
-                expect( popup.close ).not.toHaveBeenCalled();
-            } );
-
-            it( 'completes through session polling when COOP makes the popup appear closed', async() => {
+                window.dispatchEvent( new Event( 'focus' ) );
+                expect( window.open ).toHaveBeenCalledTimes( 1 );
                 popup.closed = true;
-                global.fetch
-                    .mockResolvedValueOnce( sessionResponse( false ) )
-                    .mockResolvedValueOnce( sessionResponse( true ) );
-                const pending = ensureHasValidSession( 'https://apps.example.com/' );
-                await waitFor( () => expect( global.fetch ).toHaveBeenCalledTimes( 5 ) );
-                await jest.advanceTimersByTimeAsync( 1000 );
+                await jest.advanceTimersByTimeAsync( 200 );
                 await pending;
-                expect( global.fetch ).toHaveBeenCalledTimes( 6 );
-                expect( popup.close ).not.toHaveBeenCalled();
-                expect( jest.getTimerCount() ).toBe( 0 );
             } );
 
             it( 'does not turn an aborted validation request into a new login flow', async() => {

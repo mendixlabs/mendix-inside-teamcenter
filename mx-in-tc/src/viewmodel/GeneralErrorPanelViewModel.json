@@ -34,6 +34,9 @@
         "POPUP_TIMEOUT": [
             "mxInTcMessages"
         ],
+        "LOGIN_FAILED": [
+            "mxInTcMessages"
+        ],
         "UNEXPECTED_ERROR": [
             "mxInTcMessages"
         ]

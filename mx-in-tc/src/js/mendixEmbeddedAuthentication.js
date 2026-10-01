@@ -2,7 +2,8 @@ import soaService from 'soa/kernel/soaService';
 import { MendixEmbeddedError } from './mendixEmbeddedUtils';
 
 const POPUP_TIMEOUT = 30000;
-const SESSION_POLL_INTERVAL = 1000;
+const POPUP_POLL_INTERVAL = 200;
+const POPUP_NAME = 'mxInTcSso';
 
 export const ensureHasValidSession = async( url, signal ) => {
     signal?.throwIfAborted();
@@ -129,12 +130,21 @@ const authenticateWithPopup = async( url, signal ) => {
     const ssoUrl = new URL( 'rest/tcsso/v1/login', url );
     ssoUrl.searchParams.set( 'discriminator', discriminator );
 
-    await openPopup( ssoUrl, () => hasValidSession( url, signal ), signal );
+    await openPopup( ssoUrl, signal );
+
+    if ( !await hasValidSession( url, signal ) ) {
+        throw new MendixEmbeddedError( 'LOGIN_FAILED' );
+    }
 };
 
-const openPopup = ( url, isComplete, signal ) => {
+/**
+ * Opens the SSO popup and resolves once the user (or the SSO page) closes it.
+ * The popup is closed by us when the sign-in times out or the load is cancelled.
+ */
+const openPopup = ( url, signal ) => {
     return new Promise( ( resolve, reject ) => {
         let settled = false;
+        let popup;
         let pollTimeoutId;
         let popupTimeoutId;
 
@@ -148,44 +158,41 @@ const openPopup = ( url, isComplete, signal ) => {
             window.clearTimeout( popupTimeoutId );
             window.removeEventListener( 'focus', open );
             signal?.removeEventListener( 'abort', onAbort );
-            if ( error !== undefined ) {
-                reject( error );
-            } else {
+
+            if ( error === undefined ) {
                 resolve();
+                return;
             }
+
+            if ( popup && !popup.closed ) {
+                popup.close();
+            }
+            reject( error );
         };
 
         const onAbort = () => settle( signal.reason );
 
-        const pollForCompletion = async() => {
-            try {
-                if ( await isComplete() ) {
-                    settle();
-                    return;
-                }
-            } catch ( error ) {
-                settle( error );
+        const pollForClose = () => {
+            if ( popup.closed ) {
+                settle();
                 return;
             }
 
-            if ( !settled ) {
-                pollTimeoutId = window.setTimeout(
-                    pollForCompletion,
-                    SESSION_POLL_INTERVAL
-                );
-            }
+            pollTimeoutId = window.setTimeout( pollForClose, POPUP_POLL_INTERVAL );
         };
 
         const open = () => {
-            const popup = window.open( url, '_blank', 'width=200,height=300' );
+            popup = window.open( url, POPUP_NAME, 'width=200,height=300' );
             if ( !popup ) {
                 settle( new MendixEmbeddedError( 'POPUP_BLOCKED' ) );
                 return;
             }
+
+            popup.focus?.();
             popupTimeoutId = window.setTimeout( () => {
                 settle( new MendixEmbeddedError( 'POPUP_TIMEOUT' ) );
             }, POPUP_TIMEOUT );
-            pollForCompletion();
+            pollForClose();
         };
 
         if ( signal?.aborted ) {
