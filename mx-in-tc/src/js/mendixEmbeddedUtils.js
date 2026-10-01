@@ -111,51 +111,63 @@ export const ensureHasValidSession = async( url, signal ) => {
         return;
     }
 
-    if ( await authenticateWithAccessToken( url, signal ) ) {
+    await authenticateWithAccessToken( url, signal );
+    
+    if ( await hasValidSession( url, signal ) ) {
         return;
     }
 
-    return false;
+    await authenticateWithPopup( url, signal );
 };
 
 const authenticateWithAccessToken = async( url, signal ) => {
-    signal?.throwIfAborted();
-
-    const [ userAccessTokens, discriminator ] = await Promise.all( [
-        soaService.post(
-            'Internal-Core-2026-12-Session',
-            'getUserAccessTokens',
-            {},
-            {}
-        ),
+    const [ token, discriminator ] = await Promise.all( [
+        fetchUserAccessToken(),
         fetchSessionDiscriminator( signal )
     ] );
 
     signal?.throwIfAborted();
 
-    const token = userAccessTokens?.clientUserAccessTokens
-        ?.find( ( entry ) => entry?.clientID === '' )
-        ?.token?.trim();
-
     if ( !token ) {
-        return false;
+        return;
     }
 
     const tokenUrl = new URL( 'rest/tcsso/v1/login/token', url );
     tokenUrl.searchParams.set( 'discriminator', discriminator );
     tokenUrl.searchParams.set( 'token', token );
 
-    const response = await fetch( tokenUrl, {
-        method: 'GET',
-        headers: { Accept: '*/*' },
-        mode: 'cors',
-        credentials: 'include',
-        signal
-    } );
+    try {
+        await fetch( tokenUrl, {
+            method: 'GET',
+            headers: { Accept: '*/*' },
+            mode: 'cors',
+            credentials: 'include',
+            signal
+        } );
+    } catch {
+        // The session is revalidated afterwards, so a failed exchange falls back to popup SSO.
+        signal?.throwIfAborted();
+    }
+};
 
-    signal?.throwIfAborted();
+const fetchUserAccessToken = async() => {
+    try {
+        const response = await soaService.post(
+            'Internal-Core-2026-12-Session',
+            'getUserAccessTokens',
+            {},
+            {}
+        );
+        const entries = response?.clientUserAccessTokens;
+        const token = Array.isArray( entries ) ?
+            entries.find( ( entry ) => entry?.clientID === '' )?.token :
+            undefined;
 
-    return response.json();
+        return typeof token === 'string' ? token.trim() : undefined;
+    } catch {
+        // Token authentication is optional; popup SSO remains available.
+        return undefined;
+    }
 };
 
 const fetchSessionDiscriminator = async( signal ) => {
