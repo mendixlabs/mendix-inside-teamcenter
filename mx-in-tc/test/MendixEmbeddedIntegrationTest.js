@@ -5,13 +5,13 @@ import { renderWithCtx } from '@swf/core/test/testUtils';
 import localizationService from 'js/awDuiLocalizationService';
 import soaService from 'soa/kernel/soaService';
 import MendixEmbedded from 'viewmodel/MendixEmbeddedViewModel';
-import { ensureHasValidSession } from '../src/js/mendixEmbeddedUtils';
+import { ensureHasValidSession } from '../src/js/mendixEmbeddedAuthentication';
 import { render as renderApp } from 'https://apps.example.com/dist/embedded-index.js';
 
 jest.mock( 'soa/kernel/soaService', () => ( { post: jest.fn() } ) );
 
-jest.mock( '../src/js/mendixEmbeddedUtils', () => ( {
-    ...jest.requireActual( '../src/js/mendixEmbeddedUtils' ),
+jest.mock( '../src/js/mendixEmbeddedAuthentication', () => ( {
+    ...jest.requireActual( '../src/js/mendixEmbeddedAuthentication' ),
     ensureHasValidSession: jest.fn()
 } ) );
 
@@ -143,7 +143,7 @@ describe( 'mendixEmbedded integration', () => {
 
     it( 'loads the app only after token exchange and session validation complete', async() => {
         ensureHasValidSession.mockImplementation(
-            jest.requireActual( '../src/js/mendixEmbeddedUtils' ).ensureHasValidSession
+            jest.requireActual( '../src/js/mendixEmbeddedAuthentication' ).ensureHasValidSession
         );
         soaService.post.mockResolvedValue( {
             clientUserAccessTokens: [ { clientID: '', token: 'test-access-token' } ]
@@ -185,7 +185,7 @@ describe( 'mendixEmbedded integration', () => {
 
     it( 'shows the localized runtime URL error when session validation cannot be reached', async() => {
         ensureHasValidSession.mockImplementation(
-            jest.requireActual( '../src/js/mendixEmbeddedUtils' ).ensureHasValidSession
+            jest.requireActual( '../src/js/mendixEmbeddedAuthentication' ).ensureHasValidSession
         );
         global.fetch = jest
             .fn()

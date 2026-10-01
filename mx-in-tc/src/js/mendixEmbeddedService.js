@@ -1,7 +1,7 @@
 import PopupBlockedErrorPanel from 'viewmodel/PopupBlockedErrorPanelViewModel';
 import GeneralErrorPanel from 'viewmodel/GeneralErrorPanelViewModel';
+import { ensureHasValidSession } from './mendixEmbeddedAuthentication';
 import {
-    ensureHasValidSession,
     getResolvedMendixConfiguration,
     MendixEmbeddedError
 } from './mendixEmbeddedUtils';
@@ -92,6 +92,7 @@ const renderMendixApp = async( app, container, url, parameters, signal, onReload
     }, { once: true } );
 
     unmount = await app.render( appContainer, { remoteUrl: url, minHeight: '100vh', parameters } );
+    
     if ( signal.aborted ) {
         unmount?.();
     }

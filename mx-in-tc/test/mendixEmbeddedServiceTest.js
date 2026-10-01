@@ -1,18 +1,19 @@
 /* eslint-env jest */
 import { waitFor } from '@testing-library/react';
-import {
-    ensureHasValidSession,
-    getResolvedMendixConfiguration
-} from '../src/js/mendixEmbeddedUtils';
+import { ensureHasValidSession } from '../src/js/mendixEmbeddedAuthentication';
+import { getResolvedMendixConfiguration } from '../src/js/mendixEmbeddedUtils';
 import {
     mendixCleanupFunction,
     mountMendix
 } from '../src/js/mendixEmbeddedService';
 import { render as renderApp } from 'https://apps.example.com/dist/embedded-index.js';
 
+jest.mock( '../src/js/mendixEmbeddedAuthentication', () => ( {
+    ensureHasValidSession: jest.fn()
+} ) );
+
 jest.mock( '../src/js/mendixEmbeddedUtils', () => ( {
     ...jest.requireActual( '../src/js/mendixEmbeddedUtils' ),
-    ensureHasValidSession: jest.fn(),
     getResolvedMendixConfiguration: jest.fn()
 } ) );
 
