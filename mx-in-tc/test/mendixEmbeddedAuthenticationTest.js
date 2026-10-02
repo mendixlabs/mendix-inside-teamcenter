@@ -110,11 +110,12 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 const [ tokenUrl, options ] = global.fetch.mock.calls[2];
                 expect( tokenUrl.toString() ).toBe(
-                    'https://apps.example.com/my-app/rest/tcsso/v1/login/token?discriminator=session%2F1%2B2&token=test%2Ftoken%2Bwith%3Fspecial%3D%26characters'
+                    'https://apps.example.com/my-app/rest/tcsso/v1/login/token?discriminator=session%2F1%2B2'
                 );
                 expect( options ).toEqual( {
-                    method: 'GET',
-                    headers: { Accept: '*/*' },
+                    method: 'POST',
+                    headers: { Accept: '*/*', 'Content-Type': 'application/json' },
+                    body: JSON.stringify( { token } ),
                     mode: 'cors',
                     credentials: 'include',
                     signal: controller.signal
@@ -291,11 +292,14 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                     await ensureHasValidSession( 'https://apps.example.com/' );
 
-                    const tokenUrl = global.fetch.mock.calls.find(
+                    const [ tokenUrl, tokenOptions ] = global.fetch.mock.calls.find(
                         ( [ url ] ) => url.pathname === '/rest/tcsso/v1/login/token'
-                    )[0];
+                    );
                     expect( tokenUrl.searchParams.get( 'discriminator' ) ).toBe( '' );
-                    expect( tokenUrl.searchParams.get( 'token' ) ).toBe( 'test-access-token' );
+                    expect( tokenUrl.searchParams.has( 'token' ) ).toBe( false );
+                    expect( JSON.parse( tokenOptions.body ) ).toEqual( {
+                        token: 'test-access-token'
+                    } );
                     expect(
                         window.open.mock.calls[0][0].searchParams.get( 'discriminator' )
                     ).toBe( '' );
@@ -538,14 +542,15 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 status: 200,
                 json: async() => valid
             } );
+            const closePopupByUser = () => {
+                popup.closed = true;
+            };
 
             beforeEach( () => {
                 jest.useFakeTimers();
                 jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
                 popup = { closed: false, close: jest.fn(), focus: jest.fn() };
-                popup.close.mockImplementation( () => {
-                    popup.closed = true;
-                } );
+                popup.close.mockImplementation( closePopupByUser );
                 window.open = jest.fn().mockReturnValue( popup );
                 global.fetch = jest
                     .fn()
@@ -570,7 +575,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 await jest.advanceTimersByTimeAsync( 1000 );
                 expect( global.fetch ).toHaveBeenCalledTimes( 4 );
 
-                popup.closed = true;
+                closePopupByUser();
                 await jest.advanceTimersByTimeAsync( 200 );
                 await pending;
                 expect( global.fetch ).toHaveBeenCalledTimes( 5 );
@@ -588,7 +593,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     code: 'LOGIN_FAILED'
                 } );
                 await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
-                popup.closed = true;
+                closePopupByUser();
                 await jest.advanceTimersByTimeAsync( 200 );
                 await rejected;
                 expect( global.fetch ).toHaveBeenCalledTimes( 5 );
@@ -670,7 +675,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 window.dispatchEvent( new Event( 'focus' ) );
                 expect( window.open ).toHaveBeenCalledTimes( 1 );
-                popup.closed = true;
+                closePopupByUser();
                 await jest.advanceTimersByTimeAsync( 200 );
                 await pending;
             } );

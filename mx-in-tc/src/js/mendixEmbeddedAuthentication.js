@@ -13,7 +13,7 @@ export const ensureHasValidSession = async( url, signal ) => {
     }
 
     await authenticateWithAccessToken( url, signal );
-    
+
     if ( await hasValidSession( url, signal ) ) {
         return;
     }
@@ -35,12 +35,12 @@ const authenticateWithAccessToken = async( url, signal ) => {
 
     const tokenUrl = new URL( 'rest/tcsso/v1/login/token', url );
     tokenUrl.searchParams.set( 'discriminator', discriminator );
-    tokenUrl.searchParams.set( 'token', token );
 
     try {
         await fetch( tokenUrl, {
-            method: 'GET',
-            headers: { Accept: '*/*' },
+            method: 'POST',
+            headers: { Accept: '*/*', 'Content-Type': 'application/json' },
+            body: JSON.stringify( { token } ),
             mode: 'cors',
             credentials: 'include',
             signal
