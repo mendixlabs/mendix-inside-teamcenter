@@ -18,5 +18,6 @@
     "SESSION_DISCRIMINATOR_ERROR": "Failed to retrieve the session discriminator.",
     "MENDIX_NOT_FOUND": "Cannot reach the Mendix runtime at the configured URL. Check that the URL is correct and the runtime is running.",
     "POPUP_TIMEOUT": "The sign-in timed out.",
+    "LOGIN_FAILED": "Unable to sign in to the Mendix application.",
     "UNEXPECTED_ERROR": "An unexpected error occurred."
 }

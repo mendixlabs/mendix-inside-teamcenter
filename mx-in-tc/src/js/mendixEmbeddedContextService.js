@@ -1,7 +1,7 @@
 import { DerivedStateResult } from 'js/derivedContextService';
 import { getMendixContextPaths } from './mendixEmbeddedUtils';
 
-export const getMendixContextDerivedState = ( _viewModel, props ) => {
+export const getDerivedContext = ( _viewModel, props ) => {
     let ctxParameters = [];
 
     try {
@@ -10,10 +10,8 @@ export const getMendixContextDerivedState = ( _viewModel, props ) => {
         // loadMendix reports configuration errors through the component error state.
     }
 
-    return [
-        new DerivedStateResult( {
-            ctxParameters,
-            compute: ( { ctx } ) => ctx
-        } )
-    ];
+    return new DerivedStateResult( {
+        ctxParameters,
+        compute: ( { ctx } ) => ctx
+    } );
 };

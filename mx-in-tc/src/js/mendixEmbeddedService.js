@@ -1,101 +1,109 @@
 import PopupBlockedErrorPanel from 'viewmodel/PopupBlockedErrorPanelViewModel';
 import GeneralErrorPanel from 'viewmodel/GeneralErrorPanelViewModel';
+import { ensureHasValidSession } from './mendixEmbeddedAuthentication';
 import {
-    ensureHasValidSession,
     getResolvedMendixConfiguration,
     MendixEmbeddedError
 } from './mendixEmbeddedUtils';
 
 const RELOAD_EVENT = 'embedded-app-reload';
 
-const stateByContainerRef = new WeakMap();
+const loadByContainerRef = new WeakMap();
 
 export const mendixEmbeddedRenderFunction = ( { elementRefList, viewModel, actions } ) => {
     const { errorCode } = viewModel.data;
-    return <div className='aw-layout-flexColumn'>
-        <div ref={elementRefList.get( 'mendixContainer' )} className='aw-layout-flexColumn'></div>
+
+    return <>
+        <div ref={elementRefList.get( 'mendixContainer' )}></div>
+
         {errorCode === 'POPUP_BLOCKED' && <PopupBlockedErrorPanel retry={() => actions.loadMendix( { elementRefList } )} />}
+
         {errorCode && errorCode !== 'POPUP_BLOCKED' &&
             <GeneralErrorPanel errorCode={errorCode} reload={actions.reload} />}
-    </div>;
+    </>;
 };
 
-export const mountMendix = async( elementRefList, config, context, reloadAction ) => {
+export const mountMendix = async( elementRefList, config, context, reloadAction, tcServerVersion ) => {
     const containerRef = elementRefList.get( 'mendixContainer' );
-    let controller;
+    let signal;
 
     try {
-        const configuration = getResolvedMendixConfiguration( config, context );
-        const { url, configurationKey } = configuration;
-        if ( stateByContainerRef.get( containerRef )?.configurationKey === configurationKey ) {
+        const { url, parameters, configurationKey } = getResolvedMendixConfiguration( config, context );
+
+        if ( loadByContainerRef.get( containerRef )?.configurationKey === configurationKey ) {
             return;
         }
 
         mendixCleanupFunction( elementRefList );
-        controller = new AbortController();
-        stateByContainerRef.set( containerRef, { configurationKey, controller } );
 
-        await ensureHasValidSession( url, controller.signal );
-        if ( controller.signal.aborted ) {
+        const controller = new AbortController();
+        signal = controller.signal;
+
+        loadByContainerRef.set( containerRef, { configurationKey, controller } );
+
+        await ensureHasValidSession( url, tcServerVersion, signal );
+
+        if ( signal.aborted ) {
             return;
         }
 
         const embeddedAppUrl = new URL( 'dist/embedded-index.js', url ).toString();
         const app = await import( /* webpackIgnore: true */ embeddedAppUrl );
-        await renderMendixApp( app, containerRef.current, configuration, controller.signal, () => {
+        if ( signal.aborted ) {
+            return;
+        }
+
+        if ( !containerRef.current ) {
+            throw new MendixEmbeddedError( 'CONTAINER_NOT_FOUND' );
+        }
+
+        await renderMendixApp( app, containerRef.current, url, parameters, signal, () => {
             mendixCleanupFunction( elementRefList );
             reloadAction( { elementRefList } );
         } );
-        if ( !controller.signal.aborted ) {
+
+        if ( !signal.aborted ) {
             return { errorCode: null };
         }
     } catch ( error ) {
-        if ( controller?.signal.aborted ) {
+        if ( signal?.aborted ) {
             return;
         }
 
         mendixCleanupFunction( elementRefList );
+
         return { errorCode: error?.code ?? 'UNEXPECTED_ERROR' };
     }
 };
 
-const renderMendixApp = async( app, container, { url, parameters }, signal, onReload ) => {
-    if ( signal.aborted ) {
-        return;
-    }
-    if ( !container ) {
-        throw new MendixEmbeddedError( 'CONTAINER_NOT_FOUND' );
-    }
+const renderMendixApp = async( app, container, url, parameters, signal, onReload ) => {
+    const appContainer = document.createElement( 'div' );
+    container.appendChild( appContainer );
 
-    const appContainer = createAppContainer( container );
-    appContainer.addEventListener( RELOAD_EVENT, onReload, { once: true } );
+    appContainer.addEventListener( RELOAD_EVENT, onReload, { once: true, signal } );
 
     let unmount;
     signal.addEventListener( 'abort', () => {
-        appContainer.removeEventListener( RELOAD_EVENT, onReload );
-        unmount?.();
-        appContainer.remove();
+        try {
+            unmount?.();
+        } finally {
+            appContainer.remove();
+        }
     }, { once: true } );
 
     unmount = await app.render( appContainer, { remoteUrl: url, minHeight: '100vh', parameters } );
+
     if ( signal.aborted ) {
         unmount?.();
     }
-};
-
-const createAppContainer = ( container ) => {
-    // Isolate renders so stale cleanup cannot remove a newer app.
-    const appContainer = document.createElement( 'div' );
-    appContainer.className = 'aw-layout-flexColumn';
-    container.appendChild( appContainer );
-    return appContainer;
 };
 
 export const mendixCleanupFunction = ( elementRefList ) => {
     const containerRef = elementRefList.get( 'mendixContainer' );
-    const state = stateByContainerRef.get( containerRef );
-    stateByContainerRef.delete( containerRef );
-    state?.controller.abort();
+    const load = loadByContainerRef.get( containerRef );
+
+    loadByContainerRef.delete( containerRef );
+    load?.controller.abort();
 };
 
 export const reloadPage = () => window.location.reload();

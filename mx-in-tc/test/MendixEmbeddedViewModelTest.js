@@ -21,7 +21,17 @@ describe( 'mendixEmbedded SWF lifecycle', () => {
         renderWithCtx( <MendixEmbedded config='https://apps.example.com/?mode=view' /> );
         await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
             expect.any( Map ), 'https://apps.example.com/?mode=view',
-            {}, expect.any( Function )
+            {}, expect.any( Function ), undefined
+        ) );
+    } );
+
+    it( 'passes the Teamcenter server version from ctx', async() => {
+        renderWithCtx( <MendixEmbedded config='https://apps.example.com/' />, {
+            initialState: { tcSessionData: { TCServerVersion: 'P2612.2026082800' } }
+        } );
+        await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
+            expect.any( Map ), 'https://apps.example.com/',
+            {}, expect.any( Function ), 'P2612.2026082800'
         ) );
     } );
 
@@ -32,7 +42,7 @@ describe( 'mendixEmbedded SWF lifecycle', () => {
         renderWithCtx( <MendixEmbedded config='https://apps.example.com/?uid={selected.uid}' />, { store } );
         await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
             expect.any( Map ), expect.any( String ),
-            { selected: { uid: 'A' } }, expect.any( Function )
+            { selected: { uid: 'A' } }, expect.any( Function ), undefined
         ) );
         mountMendix.mockClear();
         await act( async() => { store.dispatch( { type: 'update', path: 'unrelated', value: 2 } ); } );
@@ -40,7 +50,7 @@ describe( 'mendixEmbedded SWF lifecycle', () => {
         act( () => { store.dispatch( { type: 'update', path: 'selected.uid', value: 'B' } ); } );
         await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
             expect.any( Map ), expect.any( String ),
-            { selected: { uid: 'B' } }, expect.any( Function )
+            { selected: { uid: 'B' } }, expect.any( Function ), undefined
         ) );
     } );
 } );
