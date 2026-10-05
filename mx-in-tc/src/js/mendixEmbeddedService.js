@@ -23,7 +23,7 @@ export const mendixEmbeddedRenderFunction = ( { elementRefList, viewModel, actio
     </>;
 };
 
-export const mountMendix = async( elementRefList, config, context, reloadAction ) => {
+export const mountMendix = async( elementRefList, config, context, reloadAction, tcServerVersion ) => {
     const containerRef = elementRefList.get( 'mendixContainer' );
     let signal;
 
@@ -41,7 +41,7 @@ export const mountMendix = async( elementRefList, config, context, reloadAction 
 
         loadByContainerRef.set( containerRef, { configurationKey, controller } );
 
-        await ensureHasValidSession( url, signal );
+        await ensureHasValidSession( url, tcServerVersion, signal );
 
         if ( signal.aborted ) {
             return;

@@ -4,22 +4,29 @@ import { MendixEmbeddedError } from './mendixEmbeddedUtils';
 const POPUP_TIMEOUT = 30000;
 const POPUP_POLL_INTERVAL = 200;
 const POPUP_NAME = 'mxInTcSso';
+const TOKEN_EXCHANGE_MIN_TC_RELEASE = 2612;
 
-export const ensureHasValidSession = async( url, signal ) => {
+export const ensureHasValidSession = async( url, tcServerVersion, signal ) => {
     signal?.throwIfAborted();
 
     if ( await hasValidSession( url, signal ) ) {
         return;
     }
 
-    await authenticateWithAccessToken( url, signal );
-
-    if ( await hasValidSession( url, signal ) ) {
-        return;
+    if ( requiresPopup( tcServerVersion ) ) {
+        await authenticateWithPopup( url, signal );
+    } else {
+        await authenticateWithAccessToken( url, signal );
     }
-
-    await authenticateWithPopup( url, signal );
 };
+
+/**
+ * Teamcenter releases before 2612 cannot issue user access tokens. The release is the number
+ * after the prefix letter of the server version, for example 2612 in 'P2612.2026082800'.
+ * Unknown versions use the token exchange.
+ */
+const requiresPopup = ( tcServerVersion ) =>
+    Number.parseInt( tcServerVersion?.slice( 1 ), 10 ) < TOKEN_EXCHANGE_MIN_TC_RELEASE;
 
 const authenticateWithAccessToken = async( url, signal ) => {
     const [ token, discriminator ] = await Promise.all( [
@@ -29,25 +36,33 @@ const authenticateWithAccessToken = async( url, signal ) => {
 
     signal?.throwIfAborted();
 
-    if ( !token ) {
-        return;
+    if ( !token || !await exchangeAccessToken( url, token, discriminator, signal ) ) {
+        throw new MendixEmbeddedError( 'LOGIN_FAILED' );
     }
+};
 
+/**
+ * Exchanges the access token for a Mendix session. The endpoint responds with a boolean that
+ * tells whether the session was created, so the session does not need to be revalidated.
+ */
+const exchangeAccessToken = async( url, token, discriminator, signal ) => {
     const tokenUrl = new URL( 'rest/tcsso/v1/login/token', url );
     tokenUrl.searchParams.set( 'discriminator', discriminator );
 
     try {
-        await fetch( tokenUrl, {
+        const response = await fetch( tokenUrl, {
             method: 'POST',
-            headers: { Accept: '*/*', 'Content-Type': 'application/json' },
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
             body: JSON.stringify( { token } ),
             mode: 'cors',
             credentials: 'include',
             signal
         } );
+
+        return response.ok && await response.json() === true;
     } catch {
-        // The session is revalidated afterwards, so a failed exchange falls back to popup SSO.
         signal?.throwIfAborted();
+        return false;
     }
 };
 
@@ -66,7 +81,7 @@ const fetchUserAccessToken = async() => {
 
         return typeof token === 'string' ? token.trim() : undefined;
     } catch {
-        // Token authentication is optional; popup SSO remains available.
+        // A missing token is reported as a failed login.
         return undefined;
     }
 };

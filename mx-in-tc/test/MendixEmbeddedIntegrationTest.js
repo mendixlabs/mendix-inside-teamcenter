@@ -54,7 +54,7 @@ describe( 'mendixEmbedded integration', () => {
         await waitFor( () => expect( renderApp ).toHaveBeenCalledTimes( 2 ) );
         await act( async() => view.unmount() );
         expect( cleanup ).toHaveBeenCalledTimes( 2 );
-        expect( ensureHasValidSession.mock.calls[1][1].aborted ).toBe( true );
+        expect( ensureHasValidSession.mock.calls[1][2].aborted ).toBe( true );
     } );
 
     it( 'renders the popup error and retries only the embedded app', async() => {
@@ -141,46 +141,69 @@ describe( 'mendixEmbedded integration', () => {
         expect( renderApp ).not.toHaveBeenCalled();
     } );
 
-    it( 'loads the app only after token exchange and session validation complete', async() => {
+    it( 'loads the app only after the token exchange creates a session', async() => {
         ensureHasValidSession.mockImplementation(
             jest.requireActual( '../src/js/mendixEmbeddedAuthentication' ).ensureHasValidSession
         );
         soaService.post.mockResolvedValue( {
             clientUserAccessTokens: [ { clientID: '', token: 'test-access-token' } ]
         } );
-        let finishValidation;
+        let finishExchange;
         global.fetch = jest
             .fn()
             .mockResolvedValueOnce( { ok: true, status: 200, json: async() => false } )
             .mockResolvedValueOnce( { ok: true, text: async() => 'current-session' } )
-            .mockResolvedValueOnce( { ok: true } )
             .mockImplementationOnce(
                 () =>
                     new Promise( ( resolve ) => {
-                        finishValidation = resolve;
+                        finishExchange = resolve;
                     } )
             );
         renderApp.mockReturnValue( jest.fn() );
         const openPopup = jest.spyOn( window, 'open' );
-        renderWithCtx( <MendixEmbedded config='https://apps.example.com/' /> );
+        renderWithCtx( <MendixEmbedded config='https://apps.example.com/' />, {
+            initialState: { tcSessionData: { TCServerVersion: 'P2612.2026082800' } }
+        } );
 
-        await waitFor( () => expect( finishValidation ).toBeDefined() );
+        await waitFor( () => expect( finishExchange ).toBeDefined() );
         expect( global.fetch.mock.calls[0][0].pathname ).toBe(
             '/rest/tcsso/v1/validate-session'
         );
         expect( global.fetch.mock.calls[2][0].pathname ).toBe(
             '/rest/tcsso/v1/login/token'
         );
-        expect( global.fetch.mock.calls[3][0].pathname ).toBe(
-            '/rest/tcsso/v1/validate-session'
-        );
         expect( renderApp ).not.toHaveBeenCalled();
         await act( async() =>
-            finishValidation( { ok: true, status: 200, json: async() => true } )
+            finishExchange( { ok: true, status: 200, json: async() => true } )
         );
 
         await waitFor( () => expect( renderApp ).toHaveBeenCalledTimes( 1 ) );
+        expect( global.fetch ).toHaveBeenCalledTimes( 3 );
         expect( openPopup ).not.toHaveBeenCalled();
+    } );
+
+    it( 'uses popup SSO instead of the token exchange before Teamcenter 2612', async() => {
+        ensureHasValidSession.mockImplementation(
+            jest.requireActual( '../src/js/mendixEmbeddedAuthentication' ).ensureHasValidSession
+        );
+        jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
+        global.fetch = jest
+            .fn()
+            .mockResolvedValueOnce( { ok: true, status: 200, json: async() => false } )
+            .mockResolvedValueOnce( { ok: true, text: async() => 'current-session' } )
+            .mockResolvedValueOnce( { ok: true, status: 200, json: async() => true } );
+        const openPopup = jest.spyOn( window, 'open' ).mockReturnValue( { closed: true } );
+        renderApp.mockReturnValue( jest.fn() );
+        renderWithCtx( <MendixEmbedded config='https://apps.example.com/' />, {
+            initialState: { tcSessionData: { TCServerVersion: 'P2512.2025082800' } }
+        } );
+
+        await waitFor( () => expect( renderApp ).toHaveBeenCalledTimes( 1 ) );
+        expect( openPopup ).toHaveBeenCalledTimes( 1 );
+        expect( soaService.post ).not.toHaveBeenCalled();
+        expect(
+            global.fetch.mock.calls.some( ( [ url ] ) => url.pathname === '/rest/tcsso/v1/login/token' )
+        ).toBe( false );
     } );
 
     it( 'shows the localized runtime URL error when session validation cannot be reached', async() => {

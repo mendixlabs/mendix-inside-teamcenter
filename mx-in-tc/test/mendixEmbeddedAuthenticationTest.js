@@ -6,6 +6,15 @@ import { ensureHasValidSession } from '../src/js/mendixEmbeddedAuthentication';
 
 jest.mock( 'soa/kernel/soaService', () => ( { post: jest.fn() } ) );
 
+const TOKEN_EXCHANGE_VERSION = 'P2612.2026082800';
+const POPUP_VERSION = 'P2512.2025082800';
+
+const sessionResponse = ( valid ) => ( {
+    ok: true,
+    status: 200,
+    json: async() => valid
+} );
+
 describe( 'mendixEmbeddedAuthentication', () => {
     const originalFetch = global.fetch;
     const originalWindowOpen = window.open;
@@ -24,13 +33,67 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 .mockRejectedValue( new Error( 'Token service unavailable' ) );
         } );
 
-        describe( 'access-token authentication', () => {
-            const sessionResponse = ( valid ) => ( {
-                ok: true,
-                status: 200,
-                json: async() => valid
+        describe( 'authentication method selection', () => {
+            beforeEach( () => {
+                soaService.post.mockResolvedValue( {
+                    clientUserAccessTokens: [ { clientID: '', token: 'test-access-token' } ]
+                } );
+                jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
+                window.open = jest.fn().mockReturnValue( { closed: true } );
+                global.fetch = jest.fn().mockImplementation( async( url ) => {
+                    if ( url === '/getSessionDiscriminator' ) {
+                        return { ok: true, text: async() => 'current-session' };
+                    }
+                    if ( url.pathname === '/rest/tcsso/v1/login/token' ) {
+                        return sessionResponse( true );
+                    }
+                    return sessionResponse( global.fetch.mock.calls.length > 1 );
+                } );
             } );
 
+            it.each( [
+                'P2612.2026082800',
+                'P2612.0',
+                'P2701.2027010100',
+                'V3012.2030120100',
+                'unknown',
+                'P',
+                '',
+                undefined
+            ] )( 'uses only the token exchange for Teamcenter %p', async( version ) => {
+                await ensureHasValidSession( 'https://apps.example.com/', version );
+
+                expect( soaService.post ).toHaveBeenCalledTimes( 1 );
+                expect(
+                    global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
+                ).toEqual( [
+                    '/rest/tcsso/v1/validate-session',
+                    '/getSessionDiscriminator',
+                    '/rest/tcsso/v1/login/token'
+                ] );
+                expect( window.open ).not.toHaveBeenCalled();
+            } );
+
+            it.each( [
+                'P2512.2025082800',
+                'P2611.2026072800',
+                'P2312.2023120100'
+            ] )( 'uses only popup SSO for Teamcenter %s', async( version ) => {
+                await ensureHasValidSession( 'https://apps.example.com/', version );
+
+                expect( soaService.post ).not.toHaveBeenCalled();
+                expect(
+                    global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
+                ).toEqual( [
+                    '/rest/tcsso/v1/validate-session',
+                    '/getSessionDiscriminator',
+                    '/rest/tcsso/v1/validate-session'
+                ] );
+                expect( window.open ).toHaveBeenCalledTimes( 1 );
+            } );
+        } );
+
+        describe( 'access-token authentication', () => {
             beforeEach( () => {
                 soaService.post.mockResolvedValue( {
                     clientUserAccessTokens: [
@@ -40,7 +103,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 window.open = jest.fn();
             } );
 
-            it( 'fetches the token and discriminator concurrently before exchanging and revalidating', async() => {
+            it( 'fetches the token and discriminator concurrently and trusts the exchange result', async() => {
                 let finishInitialValidation;
                 let finishSoa;
                 let finishDiscriminator;
@@ -70,11 +133,11 @@ describe( 'mendixEmbeddedAuthentication', () => {
                             new Promise( ( resolve ) => {
                                 finishExchange = resolve;
                             } )
-                    )
-                    .mockResolvedValueOnce( sessionResponse( true ) );
+                    );
                 const controller = new AbortController();
                 const pending = ensureHasValidSession(
                     'https://apps.example.com/my-app/',
+                    TOKEN_EXCHANGE_VERSION,
                     controller.signal
                 );
 
@@ -120,19 +183,14 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     credentials: 'include',
                     signal: controller.signal
                 } );
-                finishExchange( { ok: true, status: 204 } );
+                finishExchange( sessionResponse( true ) );
                 await pending;
 
                 expect( global.fetch.mock.calls.map( ( [ url ] ) => url.toString() ) ).toEqual( [
                     'https://apps.example.com/my-app/rest/tcsso/v1/validate-session',
                     '/getSessionDiscriminator',
-                    tokenUrl.toString(),
-                    'https://apps.example.com/my-app/rest/tcsso/v1/validate-session'
+                    tokenUrl.toString()
                 ] );
-                expect( global.fetch.mock.calls[3][1] ).toEqual( {
-                    credentials: 'include',
-                    signal: controller.signal
-                } );
                 expect( window.open ).not.toHaveBeenCalled();
             } );
 
@@ -154,7 +212,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     }
                 }
             ] )(
-                'validates the existing session without exchanging an unusable token: %p',
+                'reports a failed login without exchanging an unusable token: %p',
                 async( response ) => {
                     soaService.post.mockResolvedValue( response );
                     global.fetch = jest
@@ -163,55 +221,60 @@ describe( 'mendixEmbeddedAuthentication', () => {
                         .mockResolvedValueOnce( {
                             ok: true,
                             text: async() => 'current-session'
-                        } )
-                        .mockResolvedValueOnce( sessionResponse( true ) );
+                        } );
 
-                    await ensureHasValidSession( 'https://apps.example.com/' );
+                    await expect(
+                        ensureHasValidSession( 'https://apps.example.com/', TOKEN_EXCHANGE_VERSION )
+                    ).rejects.toMatchObject( { code: 'LOGIN_FAILED' } );
 
                     expect( soaService.post ).toHaveBeenCalledTimes( 1 );
                     expect(
                         global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
                     ).toEqual( [
                         '/rest/tcsso/v1/validate-session',
-                        '/getSessionDiscriminator',
-                        '/rest/tcsso/v1/validate-session'
+                        '/getSessionDiscriminator'
                     ] );
                     expect( window.open ).not.toHaveBeenCalled();
                 }
             );
 
-            it.each( [ 200, 401, 500, 'network-error' ] )(
-                'retains popup SSO when the exchange (%s) does not establish a session',
-                async( status ) => {
-                    const discriminatorResponse = {
+            it.each( [
+                [ 'false', () => Promise.resolve( sessionResponse( false ) ) ],
+                [ 'a non-boolean', () => Promise.resolve( sessionResponse( 'true' ) ) ],
+                [ 'HTTP 401', () => Promise.resolve( { ok: false, status: 401 } ) ],
+                [ 'HTTP 500', () => Promise.resolve( { ok: false, status: 500 } ) ],
+                [
+                    'a non-JSON body',
+                    () => Promise.resolve( {
                         ok: true,
-                        text: async() => 'current-session'
-                    };
+                        status: 200,
+                        json: async() => {
+                            throw new SyntaxError( 'Unexpected token' );
+                        }
+                    } )
+                ],
+                [ 'a network error', () => Promise.reject( new TypeError( 'Failed to fetch' ) ) ]
+            ] )(
+                'reports a failed login without revalidating or popup SSO when the exchange returns %s',
+                async( _description, exchangeResponse ) => {
                     global.fetch = jest
                         .fn()
                         .mockResolvedValueOnce( sessionResponse( false ) )
-                        .mockResolvedValueOnce( discriminatorResponse );
-                    if ( status === 'network-error' ) {
-                        global.fetch.mockRejectedValueOnce(
-                            new TypeError( 'Failed to fetch' )
-                        );
-                    } else {
-                        global.fetch.mockResolvedValueOnce( { ok: status === 200, status } );
-                    }
-                    global.fetch
-                        .mockResolvedValueOnce( sessionResponse( false ) )
-                        .mockResolvedValueOnce( discriminatorResponse )
-                        .mockResolvedValueOnce( sessionResponse( true ) );
-                    jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
-                    window.open.mockReturnValue( { closed: true } );
+                        .mockResolvedValueOnce( {
+                            ok: true,
+                            text: async() => 'current-session'
+                        } )
+                        .mockImplementationOnce( exchangeResponse );
 
-                    await ensureHasValidSession( 'https://apps.example.com/' );
+                    await expect(
+                        ensureHasValidSession( 'https://apps.example.com/', TOKEN_EXCHANGE_VERSION )
+                    ).rejects.toMatchObject( { code: 'LOGIN_FAILED' } );
 
-                    expect( window.open ).toHaveBeenCalledTimes( 1 );
-                    expect( window.open.mock.calls[0][0].toString() ).toBe(
-                        'https://apps.example.com/rest/tcsso/v1/login?discriminator=current-session'
+                    expect( window.open ).not.toHaveBeenCalled();
+                    expect( global.fetch ).toHaveBeenCalledTimes( 3 );
+                    expect( global.fetch.mock.calls[2][0].pathname ).toBe(
+                        '/rest/tcsso/v1/login/token'
                     );
-                    expect( global.fetch ).toHaveBeenCalledTimes( 6 );
                 }
             );
 
@@ -221,7 +284,11 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 global.fetch = jest.fn();
 
                 await expect(
-                    ensureHasValidSession( 'https://apps.example.com/', controller.signal )
+                    ensureHasValidSession(
+                        'https://apps.example.com/',
+                        TOKEN_EXCHANGE_VERSION,
+                        controller.signal
+                    )
                 ).rejects.toBe( controller.signal.reason );
 
                 expect( soaService.post ).not.toHaveBeenCalled();
@@ -247,6 +314,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     } );
                 const pending = ensureHasValidSession(
                     'https://apps.example.com/',
+                    TOKEN_EXCHANGE_VERSION,
                     controller.signal
                 );
                 await waitFor( () => expect( finishSoa ).toBeDefined() );
@@ -267,9 +335,11 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 'empty',
                 'whitespace'
             ] )(
-                'continues token exchange and popup SSO with an empty discriminator on %s',
+                'continues the token exchange with an empty discriminator on %s',
                 async( failure ) => {
                     const warn = jest.spyOn( console, 'warn' ).mockImplementation( () => {} );
+                    const isTokenExchange = ( [ url ] ) =>
+                        url.pathname === '/rest/tcsso/v1/login/token';
                     global.fetch = jest.fn().mockImplementation( async( url ) => {
                         if ( url === '/getSessionDiscriminator' ) {
                             if ( failure === 'network-error' ) {
@@ -285,25 +355,20 @@ describe( 'mendixEmbeddedAuthentication', () => {
                                 }
                             };
                         }
-                        return sessionResponse( window.open.mock.calls.length > 0 );
+                        return sessionResponse( global.fetch.mock.calls.some( isTokenExchange ) );
                     } );
-                    jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
-                    window.open.mockReturnValue( { closed: true } );
 
-                    await ensureHasValidSession( 'https://apps.example.com/' );
+                    await ensureHasValidSession( 'https://apps.example.com/', TOKEN_EXCHANGE_VERSION );
 
-                    const [ tokenUrl, tokenOptions ] = global.fetch.mock.calls.find(
-                        ( [ url ] ) => url.pathname === '/rest/tcsso/v1/login/token'
-                    );
+                    expect( global.fetch ).toHaveBeenCalledTimes( 3 );
+                    const [ tokenUrl, tokenOptions ] = global.fetch.mock.calls.find( isTokenExchange );
                     expect( tokenUrl.searchParams.get( 'discriminator' ) ).toBe( '' );
                     expect( tokenUrl.searchParams.has( 'token' ) ).toBe( false );
                     expect( JSON.parse( tokenOptions.body ) ).toEqual( {
                         token: 'test-access-token'
                     } );
-                    expect(
-                        window.open.mock.calls[0][0].searchParams.get( 'discriminator' )
-                    ).toBe( '' );
-                    expect( warn ).toHaveBeenCalledTimes( 2 );
+                    expect( window.open ).not.toHaveBeenCalled();
+                    expect( warn ).toHaveBeenCalledTimes( 1 );
                     expect( warn ).toHaveBeenCalledWith(
                         expect.stringContaining( 'Session discriminator is unavailable' )
                     );
@@ -329,6 +394,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 const controller = new AbortController();
                 const pending = ensureHasValidSession(
                     'https://apps.example.com/',
+                    TOKEN_EXCHANGE_VERSION,
                     controller.signal
                 );
                 const rejected = expect( pending ).rejects.toMatchObject( {
@@ -364,6 +430,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 const controller = new AbortController();
                 const pending = ensureHasValidSession(
                     'https://apps.example.com/',
+                    TOKEN_EXCHANGE_VERSION,
                     controller.signal
                 );
                 const rejected = expect( pending ).rejects.toMatchObject( {
@@ -378,23 +445,26 @@ describe( 'mendixEmbeddedAuthentication', () => {
             } );
         } );
 
-        it( 'skips token authentication and popup SSO when the session is already valid', async() => {
-            global.fetch = jest.fn().mockResolvedValue( {
-                ok: true,
-                status: 200,
-                json: jest.fn().mockResolvedValue( true )
-            } );
-            window.open = jest.fn();
+        it.each( [ TOKEN_EXCHANGE_VERSION, POPUP_VERSION ] )(
+            'skips authentication on Teamcenter %s when the session is already valid',
+            async( version ) => {
+                global.fetch = jest.fn().mockResolvedValue( {
+                    ok: true,
+                    status: 200,
+                    json: jest.fn().mockResolvedValue( true )
+                } );
+                window.open = jest.fn();
 
-            await ensureHasValidSession( 'https://apps.example.com/' );
+                await ensureHasValidSession( 'https://apps.example.com/', version );
 
-            expect( global.fetch ).toHaveBeenCalledTimes( 1 );
-            expect( global.fetch.mock.calls[0][0].pathname ).toBe(
-                '/rest/tcsso/v1/validate-session'
-            );
-            expect( soaService.post ).not.toHaveBeenCalled();
-            expect( window.open ).not.toHaveBeenCalled();
-        } );
+                expect( global.fetch ).toHaveBeenCalledTimes( 1 );
+                expect( global.fetch.mock.calls[0][0].pathname ).toBe(
+                    '/rest/tcsso/v1/validate-session'
+                );
+                expect( soaService.post ).not.toHaveBeenCalled();
+                expect( window.open ).not.toHaveBeenCalled();
+            }
+        );
 
         it.each( [ 404, 500, 502, 503 ] )(
             'reports an unavailable runtime on HTTP %s without starting SSO',
@@ -406,7 +476,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 window.open = jest.fn();
 
                 await expect(
-                    ensureHasValidSession( 'https://apps.example.com/' )
+                    ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
                 ).rejects.toEqual(
                     expect.objectContaining( {
                         code: 'MENDIX_NOT_FOUND'
@@ -425,7 +495,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
             window.open = jest.fn();
 
             await expect(
-                ensureHasValidSession( 'https://apps.example.com/' )
+                ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
             ).rejects.toMatchObject( { code: 'MENDIX_NOT_FOUND' } );
             expect( global.fetch ).toHaveBeenCalledTimes( 1 );
             expect( soaService.post ).not.toHaveBeenCalled();
@@ -443,7 +513,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
             window.open = jest.fn();
 
             await expect(
-                ensureHasValidSession( 'https://apps.example.com/' )
+                ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
             ).rejects.toMatchObject( { code: 'MENDIX_NOT_FOUND' } );
             expect( global.fetch ).toHaveBeenCalledTimes( 1 );
             expect( window.open ).not.toHaveBeenCalled();
@@ -460,7 +530,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 window.open = jest.fn();
 
                 await expect(
-                    ensureHasValidSession( 'https://apps.example.com/' )
+                    ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
                 ).rejects.toMatchObject( { code: 'MENDIX_NOT_FOUND' } );
                 expect( global.fetch ).toHaveBeenCalledTimes( 1 );
                 expect( window.open ).not.toHaveBeenCalled();
@@ -468,15 +538,10 @@ describe( 'mendixEmbeddedAuthentication', () => {
         );
 
         it.each( [ 401, 403 ] )(
-            'starts SSO for HTTP %s authentication failures',
+            'starts popup SSO for HTTP %s authentication failures',
             async( status ) => {
                 global.fetch = jest
                     .fn()
-                    .mockResolvedValueOnce( { ok: false, status } )
-                    .mockResolvedValueOnce( {
-                        ok: true,
-                        text: async() => 'test-discriminator'
-                    } )
                     .mockResolvedValueOnce( { ok: false, status } )
                     .mockResolvedValueOnce( {
                         ok: true,
@@ -486,10 +551,10 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 window.open = jest.fn().mockReturnValue( null );
 
                 await expect(
-                    ensureHasValidSession( 'https://apps.example.com/' )
+                    ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
                 ).rejects.toMatchObject( { code: 'POPUP_BLOCKED' } );
-                expect( soaService.post ).toHaveBeenCalledTimes( 1 );
-                expect( global.fetch ).toHaveBeenCalledTimes( 4 );
+                expect( soaService.post ).not.toHaveBeenCalled();
+                expect( global.fetch ).toHaveBeenCalledTimes( 2 );
                 expect( window.open ).toHaveBeenCalledTimes( 1 );
             }
         );
@@ -505,21 +570,12 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 .mockResolvedValueOnce( {
                     ok: true,
                     text: async() => 'session-discriminator'
-                } )
-                .mockResolvedValueOnce( {
-                    ok: true,
-                    status: 200,
-                    json: jest.fn().mockResolvedValue( false )
-                } )
-                .mockResolvedValueOnce( {
-                    ok: true,
-                    text: jest.fn().mockResolvedValue( 'session-discriminator' )
                 } );
             jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
             window.open = jest.fn().mockReturnValue( null );
 
             await expect(
-                ensureHasValidSession( 'https://apps.example.com/' )
+                ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
             ).rejects.toEqual(
                 expect.objectContaining( {
                     code: 'POPUP_BLOCKED'
@@ -535,13 +591,26 @@ describe( 'mendixEmbeddedAuthentication', () => {
             );
         } );
 
+        it( 'opens popup SSO with an empty discriminator when it is unavailable', async() => {
+            const warn = jest.spyOn( console, 'warn' ).mockImplementation( () => {} );
+            global.fetch = jest
+                .fn()
+                .mockResolvedValueOnce( { ok: true, status: 200, json: async() => false } )
+                .mockResolvedValueOnce( { ok: false } )
+                .mockResolvedValueOnce( { ok: true, status: 200, json: async() => true } );
+            jest.spyOn( document, 'hasFocus' ).mockReturnValue( true );
+            window.open = jest.fn().mockReturnValue( { closed: true } );
+
+            await ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
+
+            expect(
+                window.open.mock.calls[0][0].searchParams.get( 'discriminator' )
+            ).toBe( '' );
+            expect( warn ).toHaveBeenCalledTimes( 1 );
+        } );
+
         describe( 'sign-in lifecycle', () => {
             let popup;
-            const sessionResponse = ( valid ) => ( {
-                ok: true,
-                status: 200,
-                json: async() => valid
-            } );
             const closePopupByUser = () => {
                 popup.closed = true;
             };
@@ -558,28 +627,23 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     .mockResolvedValueOnce( {
                         ok: true,
                         text: async() => 'test-discriminator'
-                    } )
-                    .mockResolvedValueOnce( sessionResponse( false ) )
-                    .mockResolvedValueOnce( {
-                        ok: true,
-                        text: async() => 'test-discriminator'
                     } );
             } );
 
             it( 'focuses the popup and validates the session once after it closes', async() => {
                 global.fetch.mockResolvedValueOnce( sessionResponse( true ) );
-                const pending = ensureHasValidSession( 'https://apps.example.com/' );
+                const pending = ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
                 await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
                 expect( popup.focus ).toHaveBeenCalled();
 
                 await jest.advanceTimersByTimeAsync( 1000 );
-                expect( global.fetch ).toHaveBeenCalledTimes( 4 );
+                expect( global.fetch ).toHaveBeenCalledTimes( 2 );
 
                 closePopupByUser();
                 await jest.advanceTimersByTimeAsync( 200 );
                 await pending;
-                expect( global.fetch ).toHaveBeenCalledTimes( 5 );
-                expect( global.fetch.mock.calls[4][0].pathname ).toBe(
+                expect( global.fetch ).toHaveBeenCalledTimes( 3 );
+                expect( global.fetch.mock.calls[2][0].pathname ).toBe(
                     '/rest/tcsso/v1/validate-session'
                 );
                 expect( popup.close ).not.toHaveBeenCalled();
@@ -588,7 +652,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
             it( 'reports a failed login when the popup closes without a valid session', async() => {
                 global.fetch.mockResolvedValueOnce( sessionResponse( false ) );
-                const pending = ensureHasValidSession( 'https://apps.example.com/' );
+                const pending = ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
                 const rejected = expect( pending ).rejects.toMatchObject( {
                     code: 'LOGIN_FAILED'
                 } );
@@ -596,12 +660,12 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 closePopupByUser();
                 await jest.advanceTimersByTimeAsync( 200 );
                 await rejected;
-                expect( global.fetch ).toHaveBeenCalledTimes( 5 );
+                expect( global.fetch ).toHaveBeenCalledTimes( 3 );
                 expect( jest.getTimerCount() ).toBe( 0 );
             } );
 
             it( 'closes the popup and stops polling on timeout', async() => {
-                const pending = ensureHasValidSession( 'https://apps.example.com/' );
+                const pending = ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
                 const rejected = expect( pending ).rejects.toMatchObject( {
                     code: 'POPUP_TIMEOUT'
                 } );
@@ -609,7 +673,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 await jest.advanceTimersByTimeAsync( 30000 );
                 await rejected;
                 expect( popup.close ).toHaveBeenCalledTimes( 1 );
-                expect( global.fetch ).toHaveBeenCalledTimes( 4 );
+                expect( global.fetch ).toHaveBeenCalledTimes( 2 );
                 expect( jest.getTimerCount() ).toBe( 0 );
             } );
 
@@ -617,6 +681,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 const controller = new AbortController();
                 const pending = ensureHasValidSession(
                     'https://apps.example.com/',
+                    POPUP_VERSION,
                     controller.signal
                 );
                 const rejected = expect( pending ).rejects.toMatchObject( {
@@ -626,7 +691,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 controller.abort();
                 await rejected;
                 expect( popup.close ).toHaveBeenCalledTimes( 1 );
-                expect( global.fetch ).toHaveBeenCalledTimes( 4 );
+                expect( global.fetch ).toHaveBeenCalledTimes( 2 );
                 expect( jest.getTimerCount() ).toBe( 0 );
             } );
 
@@ -637,6 +702,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 const controller = new AbortController();
                 const pending = ensureHasValidSession(
                     'https://apps.example.com/',
+                    POPUP_VERSION,
                     controller.signal
                 );
                 const rejected = expect( pending ).rejects.toMatchObject( {
@@ -663,7 +729,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 document.hasFocus.mockReturnValue( false );
                 global.fetch.mockResolvedValueOnce( sessionResponse( true ) );
                 const addListener = jest.spyOn( window, 'addEventListener' );
-                const pending = ensureHasValidSession( 'https://apps.example.com/' );
+                const pending = ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
                 await waitFor( () =>
                     expect( addListener ).toHaveBeenCalledWith(
                         'focus',
@@ -694,6 +760,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 );
                 const pending = ensureHasValidSession(
                     'https://apps.example.com/',
+                    POPUP_VERSION,
                     controller.signal
                 );
                 await waitFor( () => expect( global.fetch ).toHaveBeenCalledTimes( 1 ) );

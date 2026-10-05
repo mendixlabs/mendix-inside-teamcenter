@@ -59,13 +59,16 @@ describe( 'mendixEmbeddedService', () => {
             refs( { current: document.createElement( 'div' ) } ),
             'https://apps.example.com/?uid={uid}',
             { uid: 'UID-123' },
-            jest.fn()
+            jest.fn(),
+            'P2612.2026082800'
         );
 
         expect( getResolvedMendixConfiguration ).toHaveBeenCalledWith(
             'https://apps.example.com/?uid={uid}', { uid: 'UID-123' }
         );
-        expect( ensureHasValidSession ).toHaveBeenCalledWith( 'https://apps.example.com/', expect.any( AbortSignal ) );
+        expect( ensureHasValidSession ).toHaveBeenCalledWith(
+            'https://apps.example.com/', 'P2612.2026082800', expect.any( AbortSignal )
+        );
         expect( result ).toEqual( { errorCode: 'SESSION_ERROR' } );
     } );
 
@@ -128,7 +131,7 @@ describe( 'mendixEmbeddedService', () => {
             let finishSession;
             ensureHasValidSession.mockImplementation( () => new Promise( resolve => { finishSession = resolve; } ) );
             const pending = mount();
-            const signal = ensureHasValidSession.mock.calls[0][1];
+            const signal = ensureHasValidSession.mock.calls[0][2];
             mendixCleanupFunction( refs( containerRef ) );
             finishSession();
             await pending;

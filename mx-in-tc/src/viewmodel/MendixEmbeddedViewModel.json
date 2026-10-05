@@ -6,6 +6,9 @@
         "method": "getMendixContextDerivedState",
         "deps": "js/mendixEmbeddedContextService"
       }
+    },
+    "tcSessionData.TCServerVersion": {
+      "type": "string"
     }
   },
   "data": {
@@ -27,7 +30,8 @@
         "elementRefList": "{{parameters.elementRefList}}",
         "config": "{{props.config || props.subPanelContext.declarativeKeyContext}}",
         "context": "{{ctx.mendixContext[0]}}",
-        "reloadAction": "{{actions.loadMendix}}"
+        "reloadAction": "{{actions.loadMendix}}",
+        "tcServerVersion": "{{ctx.tcSessionData.TCServerVersion}}"
       },
       "outputData": {
         "errorCode": "errorCode"
