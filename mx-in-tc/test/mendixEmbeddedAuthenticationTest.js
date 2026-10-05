@@ -177,7 +177,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 );
                 expect( options ).toEqual( {
                     method: 'POST',
-                    headers: { Accept: '*/*', 'Content-Type': 'application/json' },
+                    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
                     body: JSON.stringify( { token } ),
                     mode: 'cors',
                     credentials: 'include',
@@ -670,7 +670,9 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     code: 'POPUP_TIMEOUT'
                 } );
                 await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
-                await jest.advanceTimersByTimeAsync( 30000 );
+                await jest.advanceTimersByTimeAsync( 2 * 60 * 1000 - 1 );
+                expect( popup.close ).not.toHaveBeenCalled();
+                await jest.advanceTimersByTimeAsync( 1 );
                 await rejected;
                 expect( popup.close ).toHaveBeenCalledTimes( 1 );
                 expect( global.fetch ).toHaveBeenCalledTimes( 2 );

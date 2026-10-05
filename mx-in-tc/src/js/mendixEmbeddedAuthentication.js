@@ -1,7 +1,7 @@
 import soaService from 'soa/kernel/soaService';
 import { MendixEmbeddedError } from './mendixEmbeddedUtils';
 
-const POPUP_TIMEOUT = 30000;
+const POPUP_TIMEOUT = 2 * 60 * 1000;
 const POPUP_POLL_INTERVAL = 200;
 const POPUP_NAME = 'mxInTcSso';
 const TOKEN_EXCHANGE_MIN_TC_RELEASE = 2612;
