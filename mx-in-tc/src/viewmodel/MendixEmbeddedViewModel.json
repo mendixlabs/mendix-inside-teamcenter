@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "ctx": {
-    "mendixContext": {
+    "derivedContext": {
       "parser": {
-        "method": "getMendixContextDerivedState",
+        "method": "getDerivedContext",
         "deps": "js/mendixEmbeddedContextService"
       }
     },
@@ -29,7 +29,7 @@
       "inputData": {
         "elementRefList": "{{parameters.elementRefList}}",
         "config": "{{props.config || props.subPanelContext.declarativeKeyContext}}",
-        "context": "{{ctx.mendixContext[0]}}",
+        "context": "{{ctx.derivedContext}}",
         "reloadAction": "{{actions.loadMendix}}",
         "tcServerVersion": "{{ctx.tcSessionData.TCServerVersion}}"
       },
@@ -55,7 +55,7 @@
     "render": "render",
     "onUpdate": {
       "action": "loadMendix",
-      "observers": [ "viewModel.ctx.mendixContext.0" ]
+      "observers": [ "viewModel.ctx.derivedContext" ]
     },
     "onUnmount": "cleanup"
   },
