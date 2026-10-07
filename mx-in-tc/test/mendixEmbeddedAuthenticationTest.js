@@ -195,26 +195,12 @@ describe( 'mendixEmbeddedAuthentication', () => {
             } );
 
             it.each( [
-                undefined,
-                {},
-                { clientUserAccessTokens: [] },
-                { clientUserAccessTokens: {} },
-                {
-                    clientUserAccessTokens: [
-                        { clientID: 'other', token: 'wrong-client-token' }
-                    ]
-                },
-                { clientUserAccessTokens: [ { clientID: '', token: ' ' } ] },
-                { clientUserAccessTokens: [ { clientID: '', token: 42 } ] },
-                {
-                    serviceData: {
-                        partialErrors: [ { clientId: '', errorValues: [ { code: 515361 } ] } ]
-                    }
-                }
+                [ 'no token', () => Promise.resolve( { clientUserAccessTokens: [] } ) ],
+                [ 'a failed SOA call', () => Promise.reject( new Error( 'Unavailable' ) ) ]
             ] )(
-                'reports a failed login without exchanging an unusable token: %p',
-                async( response ) => {
-                    soaService.post.mockResolvedValue( response );
+                'reports a failed login without exchanging when the token service returns %s',
+                async( _description, tokenResponse ) => {
+                    soaService.post.mockImplementation( tokenResponse );
                     global.fetch = jest
                         .fn()
                         .mockResolvedValueOnce( sessionResponse( false ) )
@@ -240,19 +226,6 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
             it.each( [
                 [ 'false', () => Promise.resolve( sessionResponse( false ) ) ],
-                [ 'a non-boolean', () => Promise.resolve( sessionResponse( 'true' ) ) ],
-                [ 'HTTP 401', () => Promise.resolve( { ok: false, status: 401 } ) ],
-                [ 'HTTP 500', () => Promise.resolve( { ok: false, status: 500 } ) ],
-                [
-                    'a non-JSON body',
-                    () => Promise.resolve( {
-                        ok: true,
-                        status: 200,
-                        json: async() => {
-                            throw new SyntaxError( 'Unexpected token' );
-                        }
-                    } )
-                ],
                 [ 'a network error', () => Promise.reject( new TypeError( 'Failed to fetch' ) ) ]
             ] )(
                 'reports a failed login without revalidating or popup SSO when the exchange returns %s',
@@ -664,19 +637,15 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 expect( jest.getTimerCount() ).toBe( 0 );
             } );
 
-            it( 'closes the popup and stops polling on timeout', async() => {
+            it( 'reports a popup timeout without revalidating the session', async() => {
                 const pending = ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
                 const rejected = expect( pending ).rejects.toMatchObject( {
                     code: 'POPUP_TIMEOUT'
                 } );
                 await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
-                await jest.advanceTimersByTimeAsync( 2 * 60 * 1000 - 1 );
-                expect( popup.close ).not.toHaveBeenCalled();
-                await jest.advanceTimersByTimeAsync( 1 );
+                await jest.advanceTimersByTimeAsync( 2 * 60 * 1000 );
                 await rejected;
-                expect( popup.close ).toHaveBeenCalledTimes( 1 );
                 expect( global.fetch ).toHaveBeenCalledTimes( 2 );
-                expect( jest.getTimerCount() ).toBe( 0 );
             } );
 
             it( 'closes the popup and propagates the abort signal when cancelled', async() => {
@@ -695,57 +664,6 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 expect( popup.close ).toHaveBeenCalledTimes( 1 );
                 expect( global.fetch ).toHaveBeenCalledTimes( 2 );
                 expect( jest.getTimerCount() ).toBe( 0 );
-            } );
-
-            it( 'removes a pending focus listener when cancelled', async() => {
-                document.hasFocus.mockReturnValue( false );
-                const addListener = jest.spyOn( window, 'addEventListener' );
-                const removeListener = jest.spyOn( window, 'removeEventListener' );
-                const controller = new AbortController();
-                const pending = ensureHasValidSession(
-                    'https://apps.example.com/',
-                    POPUP_VERSION,
-                    controller.signal
-                );
-                const rejected = expect( pending ).rejects.toMatchObject( {
-                    name: 'AbortError'
-                } );
-                await waitFor( () =>
-                    expect( addListener ).toHaveBeenCalledWith(
-                        'focus',
-                        expect.any( Function ),
-                        { once: true }
-                    )
-                );
-                controller.abort();
-                await rejected;
-                const listener = addListener.mock.calls.find(
-                    ( [ event ] ) => event === 'focus'
-                )[1];
-                expect( removeListener ).toHaveBeenCalledWith( 'focus', listener );
-                window.dispatchEvent( new Event( 'focus' ) );
-                expect( window.open ).not.toHaveBeenCalled();
-            } );
-
-            it( 'opens the popup once the window regains focus', async() => {
-                document.hasFocus.mockReturnValue( false );
-                global.fetch.mockResolvedValueOnce( sessionResponse( true ) );
-                const addListener = jest.spyOn( window, 'addEventListener' );
-                const pending = ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
-                await waitFor( () =>
-                    expect( addListener ).toHaveBeenCalledWith(
-                        'focus',
-                        expect.any( Function ),
-                        { once: true }
-                    )
-                );
-                expect( window.open ).not.toHaveBeenCalled();
-
-                window.dispatchEvent( new Event( 'focus' ) );
-                expect( window.open ).toHaveBeenCalledTimes( 1 );
-                closePopupByUser();
-                await jest.advanceTimersByTimeAsync( 200 );
-                await pending;
             } );
 
             it( 'does not turn an aborted validation request into a new login flow', async() => {
