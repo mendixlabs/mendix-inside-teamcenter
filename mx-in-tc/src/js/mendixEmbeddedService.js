@@ -14,7 +14,7 @@ export const mendixEmbeddedRenderFunction = ( { elementRefList, viewModel, actio
     const { errorCode } = viewModel.data;
 
     return <>
-        <div ref={elementRefList.get( 'mendixContainer' )}></div>
+        <div ref={elementRefList.get( 'mendixContainer' )} className='aw-base-scrollPanel'></div>
 
         {errorCode === 'POPUP_BLOCKED' && <PopupBlockedErrorPanel retry={() => actions.loadMendix( { elementRefList } )} />}
 
@@ -78,6 +78,8 @@ export const mountMendix = async( elementRefList, config, context, reloadAction,
 
 const renderMendixApp = async( app, container, url, parameters, signal, onReload ) => {
     const appContainer = document.createElement( 'div' );
+    // The Mendix app sizes itself to this element, so make it fill the container by setting h-12 (full height)
+    appContainer.className = 'h-12';
     container.appendChild( appContainer );
 
     appContainer.addEventListener( RELOAD_EVENT, onReload, { once: true, signal } );
@@ -91,7 +93,7 @@ const renderMendixApp = async( app, container, url, parameters, signal, onReload
         }
     }, { once: true } );
 
-    unmount = await app.render( appContainer, { remoteUrl: url, minHeight: '100vh', parameters } );
+    unmount = await app.render( appContainer, { remoteUrl: url, parameters } );
 
     if ( signal.aborted ) {
         unmount?.();
