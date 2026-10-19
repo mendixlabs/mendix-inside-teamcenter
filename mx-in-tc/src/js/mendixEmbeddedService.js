@@ -93,7 +93,7 @@ const renderMendixApp = async( app, container, url, parameters, signal, onReload
         }
     }, { once: true } );
 
-    unmount = await app.render( appContainer, { remoteUrl: url, parameters } );
+    unmount = await app.render( appContainer, { remoteUrl: url, minHeight: '100vh', parameters } );
 
     if ( signal.aborted ) {
         unmount?.();

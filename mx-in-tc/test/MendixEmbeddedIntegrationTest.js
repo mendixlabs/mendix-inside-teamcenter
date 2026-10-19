@@ -113,6 +113,7 @@ describe( 'mendixEmbedded integration', () => {
                 expect.any( HTMLElement ),
                 expect.objectContaining( {
                     remoteUrl: 'https://apps.example.com/',
+                    minHeight: '100vh',
                     parameters: { uid: 'UID-456', mode: 'edit' }
                 } )
             )
