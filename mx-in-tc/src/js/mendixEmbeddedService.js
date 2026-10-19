@@ -1,6 +1,7 @@
 import PopupBlockedErrorPanel from 'viewmodel/PopupBlockedErrorPanelViewModel';
 import GeneralErrorPanel from 'viewmodel/GeneralErrorPanelViewModel';
 import { ensureHasValidSession } from './mendixEmbeddedAuthentication';
+import { registerMendixLogout } from './mendixEmbeddedLogout';
 import {
     getResolvedMendixConfiguration,
     MendixEmbeddedError
@@ -42,6 +43,7 @@ export const mountMendix = async( elementRefList, config, context, reloadAction,
         loadByContainerRef.set( containerRef, { configurationKey, controller } );
 
         await ensureHasValidSession( url, tcServerVersion, signal );
+        registerMendixLogout( url );
 
         if ( signal.aborted ) {
             return;
