@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import { waitFor } from '@testing-library/react';
 import { ensureHasValidSession } from '../src/js/mendixEmbeddedAuthentication';
+import { registerMendixLogout } from '../src/js/mendixEmbeddedLogout';
 import { getResolvedMendixConfiguration } from '../src/js/mendixEmbeddedUtils';
 import {
     mendixCleanupFunction,
@@ -10,6 +11,10 @@ import { render as renderApp } from 'https://apps.example.com/dist/embedded-inde
 
 jest.mock( '../src/js/mendixEmbeddedAuthentication', () => ( {
     ensureHasValidSession: jest.fn()
+} ) );
+
+jest.mock( '../src/js/mendixEmbeddedLogout', () => ( {
+    registerMendixLogout: jest.fn()
 } ) );
 
 jest.mock( '../src/js/mendixEmbeddedUtils', () => ( {
@@ -70,6 +75,7 @@ describe( 'mendixEmbeddedService', () => {
             'https://apps.example.com/', 'P2612.2026082800', expect.any( AbortSignal )
         );
         expect( result ).toEqual( { errorCode: 'SESSION_ERROR' } );
+        expect( registerMendixLogout ).not.toHaveBeenCalled();
     } );
 
     it( 'uses the unexpected error code for unrecognized failures', async() => {
@@ -122,6 +128,7 @@ describe( 'mendixEmbeddedService', () => {
             await mount();
             expect( renderApp ).toHaveBeenCalledTimes( 1 );
             expect( ensureHasValidSession ).toHaveBeenCalledTimes( 1 );
+            expect( registerMendixLogout ).toHaveBeenCalledWith( 'https://apps.example.com/' );
             mendixCleanupFunction( refs( containerRef ) );
             mendixCleanupFunction( refs( containerRef ) );
             expect( unmount ).toHaveBeenCalledTimes( 1 );
