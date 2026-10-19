@@ -15,6 +15,10 @@ jest.mock( '../src/js/mendixEmbeddedAuthentication', () => ( {
     ensureHasValidSession: jest.fn()
 } ) );
 
+jest.mock( '../src/js/mendixEmbeddedLogout', () => ( {
+    registerMendixLogout: jest.fn()
+} ) );
+
 jest.mock(
     'https://apps.example.com/dist/embedded-index.js',
     () => ( {
@@ -113,6 +117,7 @@ describe( 'mendixEmbedded integration', () => {
                 expect.any( HTMLElement ),
                 expect.objectContaining( {
                     remoteUrl: 'https://apps.example.com/',
+                    minHeight: '100vh',
                     parameters: { uid: 'UID-456', mode: 'edit' }
                 } )
             )
