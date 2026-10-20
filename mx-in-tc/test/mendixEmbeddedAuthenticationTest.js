@@ -211,7 +211,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                     await expect(
                         ensureHasValidSession( 'https://apps.example.com/', TOKEN_EXCHANGE_VERSION )
-                    ).rejects.toMatchObject( { code: 'LOGIN_FAILED' } );
+                    ).rejects.toMatchObject( { errorCode: 'LOGIN_FAILED' } );
 
                     expect( soaService.post ).toHaveBeenCalledTimes( 1 );
                     expect(
@@ -241,7 +241,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                     await expect(
                         ensureHasValidSession( 'https://apps.example.com/', TOKEN_EXCHANGE_VERSION )
-                    ).rejects.toMatchObject( { code: 'LOGIN_FAILED' } );
+                    ).rejects.toMatchObject( { errorCode: 'LOGIN_FAILED' } );
 
                     expect( window.open ).not.toHaveBeenCalled();
                     expect( global.fetch ).toHaveBeenCalledTimes( 3 );
@@ -452,7 +452,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
                 ).rejects.toEqual(
                     expect.objectContaining( {
-                        code: 'MENDIX_NOT_FOUND'
+                        errorCode: 'MENDIX_NOT_FOUND'
                     } )
                 );
                 expect( global.fetch ).toHaveBeenCalledTimes( 1 );
@@ -469,7 +469,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
             await expect(
                 ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
-            ).rejects.toMatchObject( { code: 'MENDIX_NOT_FOUND' } );
+            ).rejects.toMatchObject( { errorCode: 'MENDIX_NOT_FOUND' } );
             expect( global.fetch ).toHaveBeenCalledTimes( 1 );
             expect( soaService.post ).not.toHaveBeenCalled();
             expect( window.open ).not.toHaveBeenCalled();
@@ -487,7 +487,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
             await expect(
                 ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
-            ).rejects.toMatchObject( { code: 'MENDIX_NOT_FOUND' } );
+            ).rejects.toMatchObject( { errorCode: 'MENDIX_NOT_FOUND' } );
             expect( global.fetch ).toHaveBeenCalledTimes( 1 );
             expect( window.open ).not.toHaveBeenCalled();
         } );
@@ -504,7 +504,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 await expect(
                     ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
-                ).rejects.toMatchObject( { code: 'MENDIX_NOT_FOUND' } );
+                ).rejects.toMatchObject( { errorCode: 'MENDIX_NOT_FOUND' } );
                 expect( global.fetch ).toHaveBeenCalledTimes( 1 );
                 expect( window.open ).not.toHaveBeenCalled();
             }
@@ -525,7 +525,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 await expect(
                     ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
-                ).rejects.toMatchObject( { code: 'POPUP_BLOCKED' } );
+                ).rejects.toMatchObject( { errorCode: 'POPUP_BLOCKED' } );
                 expect( soaService.post ).not.toHaveBeenCalled();
                 expect( global.fetch ).toHaveBeenCalledTimes( 2 );
                 expect( window.open ).toHaveBeenCalledTimes( 1 );
@@ -551,7 +551,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION )
             ).rejects.toEqual(
                 expect.objectContaining( {
-                    code: 'POPUP_BLOCKED'
+                    errorCode: 'POPUP_BLOCKED'
                 } )
             );
             expect( window.open ).toHaveBeenCalledWith(
@@ -627,7 +627,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 global.fetch.mockResolvedValueOnce( sessionResponse( false ) );
                 const pending = ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
                 const rejected = expect( pending ).rejects.toMatchObject( {
-                    code: 'LOGIN_FAILED'
+                    errorCode: 'LOGIN_FAILED'
                 } );
                 await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
                 closePopupByUser();
@@ -640,7 +640,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
             it( 'reports a popup timeout without revalidating the session', async() => {
                 const pending = ensureHasValidSession( 'https://apps.example.com/', POPUP_VERSION );
                 const rejected = expect( pending ).rejects.toMatchObject( {
-                    code: 'POPUP_TIMEOUT'
+                    errorCode: 'POPUP_TIMEOUT'
                 } );
                 await waitFor( () => expect( window.open ).toHaveBeenCalledTimes( 1 ) );
                 await jest.advanceTimersByTimeAsync( 2 * 60 * 1000 );

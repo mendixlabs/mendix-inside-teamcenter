@@ -43,7 +43,7 @@ describe( 'mendixEmbeddedUtils', () => {
             expect( () => getResolvedMendixConfiguration( config, {} ) ).toThrow(
                 expect.objectContaining( {
                     name: 'MendixEmbeddedError',
-                    code: expectedCode
+                    errorCode: expectedCode
                 } )
             );
         } );
@@ -56,7 +56,7 @@ describe( 'mendixEmbeddedUtils', () => {
                     'https://apps.example.com/?item={selected}',
                     { selected }
                 )
-            ).toThrow( expect.objectContaining( { code: 'INVALID_PARAMETER' } ) );
+            ).toThrow( expect.objectContaining( { errorCode: 'INVALID_PARAMETER' } ) );
         } );
 
         it( 'preserves missing fields and quoted string literals', () => {
@@ -78,11 +78,11 @@ describe( 'mendixEmbeddedUtils', () => {
         } );
     } );
 
-    it( 'creates errors with a stable name and code', () => {
+    it( 'creates errors with a stable name and error code', () => {
         const error = new MendixEmbeddedError( 'CODE' );
 
         expect( error ).toBeInstanceOf( Error );
         expect( error.name ).toBe( 'MendixEmbeddedError' );
-        expect( error.code ).toBe( 'CODE' );
+        expect( error.errorCode ).toBe( 'CODE' );
     } );
 } );

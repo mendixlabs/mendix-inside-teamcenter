@@ -6,6 +6,7 @@ import localizationService from 'js/awDuiLocalizationService';
 import soaService from 'soa/kernel/soaService';
 import MendixEmbedded from 'viewmodel/MendixEmbeddedViewModel';
 import { ensureHasValidSession } from '../src/js/mendixEmbeddedAuthentication';
+import { MendixEmbeddedError } from '../src/js/mendixEmbeddedUtils';
 import { render as renderApp } from 'https://apps.example.com/dist/embedded-index.js';
 
 jest.mock( 'soa/kernel/soaService', () => ( { post: jest.fn() } ) );
@@ -58,7 +59,7 @@ describe( 'mendixEmbedded integration', () => {
     } );
 
     it( 'renders the popup error and retries only the embedded app', async() => {
-        ensureHasValidSession.mockRejectedValueOnce( { code: 'POPUP_BLOCKED' } );
+        ensureHasValidSession.mockRejectedValueOnce( new MendixEmbeddedError( 'POPUP_BLOCKED' ) );
         renderApp.mockReturnValue( jest.fn() );
         const view = renderWithCtx(
             <MendixEmbedded config='https://apps.example.com/' />
@@ -120,8 +121,8 @@ describe( 'mendixEmbedded integration', () => {
         );
     } );
 
-    it( 'falls back to the generic localized message for unknown error codes', async() => {
-        ensureHasValidSession.mockRejectedValueOnce( { code: 'UNKNOWN_CODE' } );
+    it( 'falls back to the generic localized message for errors without a code', async() => {
+        ensureHasValidSession.mockRejectedValueOnce( new Error( 'network down' ) );
         const view = renderWithCtx(
             <MendixEmbedded config='https://apps.example.com/' />
         );

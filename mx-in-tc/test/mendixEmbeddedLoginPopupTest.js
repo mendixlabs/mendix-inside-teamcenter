@@ -44,7 +44,7 @@ describe( 'mendixEmbeddedLoginPopup', () => {
             window.open.mockReturnValue( null );
 
             await expect( openLoginPopup( APP_URL, '' ) ).rejects.toMatchObject( {
-                code: 'POPUP_BLOCKED'
+                errorCode: 'POPUP_BLOCKED'
             } );
             expect( jest.getTimerCount() ).toBe( 0 );
         } );
@@ -67,7 +67,7 @@ describe( 'mendixEmbeddedLoginPopup', () => {
 
         it( 'closes the popup and stops polling on timeout', async() => {
             const rejected = expect( openLoginPopup( APP_URL, '' ) ).rejects.toMatchObject( {
-                code: 'POPUP_TIMEOUT'
+                errorCode: 'POPUP_TIMEOUT'
             } );
 
             await jest.advanceTimersByTimeAsync( 2 * 60 * 1000 - 1 );

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { waitFor } from '@testing-library/react';
 import { ensureHasValidSession } from '../src/js/mendixEmbeddedAuthentication';
-import { getResolvedMendixConfiguration } from '../src/js/mendixEmbeddedUtils';
+import { getResolvedMendixConfiguration, MendixEmbeddedError } from '../src/js/mendixEmbeddedUtils';
 import {
     mendixCleanupFunction,
     mountMendix
@@ -34,7 +34,7 @@ describe( 'mendixEmbeddedService', () => {
 
     it( 'maps known configuration errors to component error state', async() => {
         getResolvedMendixConfiguration.mockImplementation( () => {
-            throw { code: 'MISSING_CONFIGURATION' };
+            throw new MendixEmbeddedError( 'MISSING_CONFIGURATION' );
         } );
 
         const result = await mountMendix(
@@ -53,7 +53,7 @@ describe( 'mendixEmbeddedService', () => {
             parameters: { uid: 'UID-123' },
             configurationKey: 'configuration-key'
         } );
-        ensureHasValidSession.mockRejectedValue( { code: 'SESSION_ERROR' } );
+        ensureHasValidSession.mockRejectedValue( new MendixEmbeddedError( 'LOGIN_FAILED' ) );
 
         const result = await mountMendix(
             refs( { current: document.createElement( 'div' ) } ),
@@ -69,7 +69,7 @@ describe( 'mendixEmbeddedService', () => {
         expect( ensureHasValidSession ).toHaveBeenCalledWith(
             'https://apps.example.com/', 'P2612.2026082800', expect.any( AbortSignal )
         );
-        expect( result ).toEqual( { errorCode: 'SESSION_ERROR' } );
+        expect( result ).toEqual( { errorCode: 'LOGIN_FAILED' } );
     } );
 
     it( 'uses the unexpected error code for unrecognized failures', async() => {

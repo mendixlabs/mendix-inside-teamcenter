@@ -1,8 +1,9 @@
 export class MendixEmbeddedError extends Error {
-    constructor( code ) {
-        super( code );
+    constructor( errorCode ) {
+        super( errorCode );
         this.name = 'MendixEmbeddedError';
-        this.code = code;
+        // SWF maps failures through `errorCode`; every code has an i18n entry in mxInTcMessages.
+        this.errorCode = errorCode;
     }
 }
 

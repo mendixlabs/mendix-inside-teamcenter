@@ -72,7 +72,9 @@ export const mountMendix = async( elementRefList, config, context, reloadAction,
 
         mendixCleanupFunction( elementRefList );
 
-        return { errorCode: error?.code ?? 'UNEXPECTED_ERROR' };
+        return {
+            errorCode: error instanceof MendixEmbeddedError ? error.errorCode : 'UNEXPECTED_ERROR'
+        };
     }
 };
 
