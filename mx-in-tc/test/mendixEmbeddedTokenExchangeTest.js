@@ -11,10 +11,10 @@ jest.mock( 'soa/kernel/soaService', () => ( { post: jest.fn() } ) );
 const APP_URL = 'https://apps.example.com/my-app/';
 const TOKEN = 'test-access-token';
 
-const exchangeResponse = ( created ) => ( {
+const exchangeResponse = ( body ) => ( {
     ok: true,
     status: 200,
-    json: async() => created
+    json: async() => body
 } );
 
 describe( 'mendixEmbeddedTokenExchange', () => {
@@ -88,7 +88,7 @@ describe( 'mendixEmbeddedTokenExchange', () => {
         it( 'posts the token in the body and the discriminator in the query', async() => {
             const controller = new AbortController();
             const token = 'test/token+with?special=&characters';
-            global.fetch = jest.fn().mockResolvedValue( exchangeResponse( true ) );
+            global.fetch = jest.fn().mockResolvedValue( exchangeResponse( { success: true } ) );
 
             await expect(
                 exchangeAccessToken( APP_URL, token, 'session/1+2', controller.signal )
@@ -96,7 +96,7 @@ describe( 'mendixEmbeddedTokenExchange', () => {
 
             const [ tokenUrl, options ] = global.fetch.mock.calls[0];
             expect( tokenUrl.toString() ).toBe(
-                'https://apps.example.com/my-app/rest/tcsso/v1/login/token?discriminator=session%2F1%2B2'
+                'https://apps.example.com/my-app/rest/tcsso/v1/token-login?discriminator=session%2F1%2B2'
             );
             expect( tokenUrl.searchParams.has( 'token' ) ).toBe( false );
             expect( options ).toEqual( {
@@ -110,8 +110,19 @@ describe( 'mendixEmbeddedTokenExchange', () => {
         } );
 
         it.each( [
-            [ 'false', () => Promise.resolve( exchangeResponse( false ) ) ],
-            [ 'a non-boolean', () => Promise.resolve( exchangeResponse( 'true' ) ) ],
+            [
+                'success false',
+                () => Promise.resolve(
+                    exchangeResponse( { success: false, error: 'Invalid token' } )
+                )
+            ],
+            [ 'a non-boolean success', () => Promise.resolve( exchangeResponse( { success: 'true' } ) ) ],
+            [ 'a bare true', () => Promise.resolve( exchangeResponse( true ) ) ],
+            [ 'null', () => Promise.resolve( exchangeResponse( null ) ) ],
+            [
+                'HTTP 500 with success true',
+                () => Promise.resolve( { ok: false, status: 500, json: async() => ( { success: true } ) } )
+            ],
             [ 'HTTP 401', () => Promise.resolve( { ok: false, status: 401 } ) ],
             [ 'HTTP 500', () => Promise.resolve( { ok: false, status: 500 } ) ],
             [

@@ -31,19 +31,20 @@ export const fetchUserAccessToken = async() => {
  * Flow:
  * 1. The caller gets the user access token (`fetchUserAccessToken`) and the session
  *    discriminator from Teamcenter.
- * 2. The token is POSTed in the JSON body to the Mendix endpoint `rest/tcsso/v1/login/token`,
- *    with the discriminator as a query parameter.
+ * 2. The token is POSTed in the JSON body (`{ "token": "<access token>" }`) to the Mendix
+ *    endpoint `rest/tcsso/v1/token-login`, with the discriminator as a query parameter.
  * 3. The Mendix runtime exchanges the token with Teamcenter for the user information and a
  *    session key.
  * 4. The runtime retrieves the Mendix user that matches the user information, or provisions
  *    one if it does not exist yet.
  * 5. The runtime uses the session key and user ID to create a Teamcenter session for that
  *    Mendix user, and stores it with the user.
- * 6. The runtime creates the Mendix session and responds with `true`.
+ * 6. The runtime creates the Mendix session and responds with `{ "success": true }`, or with
+ *    `{ "success": false, "error": "<error message>" }` when the login failed.
  *
  * Because the response already says whether the Mendix session was created, it does not need
- * to be validated again. Resolves to false for any response other than `true`, including HTTP
- * and network errors. Only a cancellation rejects.
+ * to be validated again. Resolves to false for any response other than `{ "success": true }`,
+ * including HTTP and network errors. Only a cancellation rejects.
  *
  * @param {string} url - Base URL of the Mendix application.
  * @param {string} token - Teamcenter user access token.
@@ -52,7 +53,7 @@ export const fetchUserAccessToken = async() => {
  * @returns {Promise<boolean>} Whether the Mendix session was created.
  */
 export const exchangeAccessToken = async( url, token, discriminator, signal ) => {
-    const tokenUrl = new URL( 'rest/tcsso/v1/login/token', url );
+    const tokenUrl = new URL( 'rest/tcsso/v1/token-login', url );
     tokenUrl.searchParams.set( 'discriminator', discriminator );
 
     try {
@@ -65,7 +66,7 @@ export const exchangeAccessToken = async( url, token, discriminator, signal ) =>
             signal
         } );
 
-        return response.ok && await response.json() === true;
+        return response.ok && ( await response.json() )?.success === true;
     } catch {
         signal?.throwIfAborted();
         return false;

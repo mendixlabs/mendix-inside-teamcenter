@@ -15,6 +15,12 @@ const sessionResponse = ( valid ) => ( {
     json: async() => valid
 } );
 
+const tokenLoginResponse = ( success ) => ( {
+    ok: true,
+    status: 200,
+    json: async() => ( success ? { success } : { success, error: 'Login failed' } )
+} );
+
 describe( 'mendixEmbeddedAuthentication', () => {
     const originalFetch = global.fetch;
     const originalWindowOpen = window.open;
@@ -44,8 +50,8 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     if ( url === '/getSessionDiscriminator' ) {
                         return { ok: true, text: async() => 'current-session' };
                     }
-                    if ( url.pathname === '/rest/tcsso/v1/login/token' ) {
-                        return sessionResponse( true );
+                    if ( url.pathname === '/rest/tcsso/v1/token-login' ) {
+                        return tokenLoginResponse( true );
                     }
                     return sessionResponse( global.fetch.mock.calls.length > 1 );
                 } );
@@ -69,7 +75,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 ).toEqual( [
                     '/rest/tcsso/v1/validate-session',
                     '/getSessionDiscriminator',
-                    '/rest/tcsso/v1/login/token'
+                    '/rest/tcsso/v1/token-login'
                 ] );
                 expect( window.open ).not.toHaveBeenCalled();
             } );
@@ -173,7 +179,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 const [ tokenUrl, options ] = global.fetch.mock.calls[2];
                 expect( tokenUrl.toString() ).toBe(
-                    'https://apps.example.com/my-app/rest/tcsso/v1/login/token?discriminator=session%2F1%2B2'
+                    'https://apps.example.com/my-app/rest/tcsso/v1/token-login?discriminator=session%2F1%2B2'
                 );
                 expect( options ).toEqual( {
                     method: 'POST',
@@ -183,7 +189,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     credentials: 'include',
                     signal: controller.signal
                 } );
-                finishExchange( sessionResponse( true ) );
+                finishExchange( tokenLoginResponse( true ) );
                 await pending;
 
                 expect( global.fetch.mock.calls.map( ( [ url ] ) => url.toString() ) ).toEqual( [
@@ -225,7 +231,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
             );
 
             it.each( [
-                [ 'false', () => Promise.resolve( sessionResponse( false ) ) ],
+                [ 'success false', () => Promise.resolve( tokenLoginResponse( false ) ) ],
                 [ 'a network error', () => Promise.reject( new TypeError( 'Failed to fetch' ) ) ]
             ] )(
                 'reports a failed login without revalidating or popup SSO when the exchange returns %s',
@@ -246,7 +252,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     expect( window.open ).not.toHaveBeenCalled();
                     expect( global.fetch ).toHaveBeenCalledTimes( 3 );
                     expect( global.fetch.mock.calls[2][0].pathname ).toBe(
-                        '/rest/tcsso/v1/login/token'
+                        '/rest/tcsso/v1/token-login'
                     );
                 }
             );
@@ -312,7 +318,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 async( failure ) => {
                     const warn = jest.spyOn( console, 'warn' ).mockImplementation( () => {} );
                     const isTokenExchange = ( [ url ] ) =>
-                        url.pathname === '/rest/tcsso/v1/login/token';
+                        url.pathname === '/rest/tcsso/v1/token-login';
                     global.fetch = jest.fn().mockImplementation( async( url ) => {
                         if ( url === '/getSessionDiscriminator' ) {
                             if ( failure === 'network-error' ) {
@@ -328,7 +334,10 @@ describe( 'mendixEmbeddedAuthentication', () => {
                                 }
                             };
                         }
-                        return sessionResponse( global.fetch.mock.calls.some( isTokenExchange ) );
+                        if ( isTokenExchange( [ url ] ) ) {
+                            return tokenLoginResponse( true );
+                        }
+                        return sessionResponse( false );
                     } );
 
                     await ensureHasValidSession( 'https://apps.example.com/', TOKEN_EXCHANGE_VERSION );
