@@ -25,13 +25,13 @@
         "CONTAINER_NOT_FOUND": [
             "mxInTcMessages"
         ],
-        "SESSION_DISCRIMINATOR_ERROR": [
-            "mxInTcMessages"
-        ],
         "MENDIX_NOT_FOUND": [
             "mxInTcMessages"
         ],
         "POPUP_TIMEOUT": [
+            "mxInTcMessages"
+        ],
+        "LOGIN_FAILED": [
             "mxInTcMessages"
         ],
         "UNEXPECTED_ERROR": [

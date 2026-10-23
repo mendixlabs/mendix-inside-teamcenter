@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { DerivedStateResult } from 'js/derivedContextService';
-import { getMendixContextDerivedState } from '../src/js/mendixEmbeddedContextService';
+import { getDerivedContext } from '../src/js/mendixEmbeddedContextService';
 
 jest.mock( 'js/derivedContextService', () => ( {
     DerivedStateResult: jest.fn().mockImplementation( ( options ) => options )
@@ -12,7 +12,7 @@ describe( 'mendixEmbeddedContextService', () => {
     } );
 
     it( 'subscribes to context paths used by the Mendix configuration', () => {
-        const [ result ] = getMendixContextDerivedState( null, {
+        const result = getDerivedContext( null, {
             config: 'https://apps.example.com/?uid={selection.uid}&type={selection.type}&mode=edit'
         } );
 
@@ -29,7 +29,7 @@ describe( 'mendixEmbeddedContextService', () => {
     } );
 
     it( 'uses an empty subscription when configuration is invalid', () => {
-        getMendixContextDerivedState( null, { config: 'invalid URL' } );
+        getDerivedContext( null, { config: 'invalid URL' } );
 
         expect( DerivedStateResult ).toHaveBeenCalledWith( {
             ctxParameters: [],
