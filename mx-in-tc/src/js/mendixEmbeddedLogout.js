@@ -49,11 +49,11 @@ const logout = async( url ) => {
         } );
 
         if ( !response.ok ) {
-            console.warn( `Mendix logout at ${url} failed with status ${response.status}.` );
+            console.error( `Mendix logout at ${url} failed with status ${response.status}.` );
         }
         return response.ok;
-    } catch {
-        console.warn( `Mendix logout at ${url} failed.` );
+    } catch ( error ) {
+        console.error( `Mendix logout at ${url} failed.`, error );
         return false;
     } finally {
         window.clearTimeout( timeoutId );
@@ -70,11 +70,7 @@ export default ( _, deferred ) => {
             name: MENDIX_LOGOUT_STEP_NAME,
             active: true,
             workFunction: ( _, stepDeferred ) => {
-                const continuePipeline = () => stepDeferred.resolve();
-                logoutFromMendix().then( continuePipeline, ( error ) => {
-                    console.warn( 'Mendix logout failed.', error );
-                    continuePipeline();
-                } );
+                logoutFromMendix().then( () => stepDeferred.resolve() );
             }
         } )
     } );

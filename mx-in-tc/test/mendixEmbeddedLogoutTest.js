@@ -13,7 +13,7 @@ describe( 'mendixEmbeddedLogout', () => {
 
     beforeEach( async() => {
         global.fetch = jest.fn().mockResolvedValue( { ok: true, status: 200 } );
-        jest.spyOn( console, 'warn' ).mockImplementation( () => {} );
+        jest.spyOn( console, 'error' ).mockImplementation( () => {} );
         // Start every test without registered applications.
         await logoutFromMendix();
         global.fetch.mockClear();
@@ -53,15 +53,15 @@ describe( 'mendixEmbeddedLogout', () => {
     } );
 
     it.each( [
-        [ 'rejected', () => Promise.reject( new Error( 'network' ) ) ],
-        [ 'unsuccessful', () => Promise.resolve( { ok: false, status: 500 } ) ],
-        [ 'unavailable', () => Promise.resolve( { ok: false, status: 404 } ) ]
-    ] )( 'reports a %s Mendix logout without rejecting', async( _, response ) => {
+        [ 'rejected', () => Promise.reject( new Error( 'network' ) ), [ expect.any( Error ) ] ],
+        [ 'unsuccessful', () => Promise.resolve( { ok: false, status: 500 } ), [] ],
+        [ 'unavailable', () => Promise.resolve( { ok: false, status: 404 } ), [] ]
+    ] )( 'logs a %s Mendix logout without rejecting', async( _, response, extraArgs ) => {
         global.fetch.mockImplementation( response );
         registerMendixLogout( 'https://apps.example.com/' );
 
         await expect( logoutFromMendix() ).resolves.toBe( false );
-        expect( console.warn ).toHaveBeenCalled();
+        expect( console.error ).toHaveBeenCalledWith( expect.stringContaining( 'https://apps.example.com/' ), ...extraArgs );
     } );
 
     it( 'reports a failed Mendix logout without rejecting when fetch is not available', async() => {
