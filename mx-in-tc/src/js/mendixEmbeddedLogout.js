@@ -1,5 +1,3 @@
-const LOGOUT_TIMEOUT = 5 * 1000;
-
 export const MENDIX_LOGOUT_CONTRIBUTION_KEY = 'preLogoutPipeline';
 export const MENDIX_LOGOUT_STEP_NAME = 'mendixLogout';
 
@@ -33,19 +31,13 @@ export const logoutFromMendix = async() => {
  * @returns {Promise<boolean>} Resolves with true if the logout succeeded, false otherwise.
  */
 const logout = async( url ) => {
-    let timeoutId;
-
     try {
-        const controller = new AbortController();
-        timeoutId = window.setTimeout( () => controller.abort(), LOGOUT_TIMEOUT );
-
         const response = await fetch( new URL( 'rest/tcsso/v1/logout', url ), {
             method: 'POST',
             mode: 'cors',
             credentials: 'include',
             // Lets the request complete if Active Workspace reloads the page during logout.
-            keepalive: true,
-            signal: controller.signal
+            keepalive: true
         } );
 
         if ( !response.ok ) {
@@ -55,14 +47,13 @@ const logout = async( url ) => {
     } catch ( error ) {
         console.error( `Mendix logout at ${url} failed.`, error );
         return false;
-    } finally {
-        window.clearTimeout( timeoutId );
     }
 };
 
 /**
- * Contributes the pre-logout pipeline step. The step always continues the pipeline, so a failed
- * Mendix logout never blocks the Teamcenter logout.
+ * Contributes the pre-logout pipeline step. The step starts the Mendix logouts and continues the
+ * pipeline immediately, relying on keepalive to complete the requests. This way Mendix applications
+ * without a logout endpoint, or that respond slowly, never delay the Teamcenter logout.
  */
 export default ( _, deferred ) => {
     deferred.resolve( {
@@ -70,7 +61,8 @@ export default ( _, deferred ) => {
             name: MENDIX_LOGOUT_STEP_NAME,
             active: true,
             workFunction: ( _, stepDeferred ) => {
-                logoutFromMendix().then( () => stepDeferred.resolve() );
+                logoutFromMendix();
+                stepDeferred.resolve();
             }
         } )
     } );

@@ -71,31 +71,6 @@ describe( 'mendixEmbeddedLogout', () => {
         await expect( logoutFromMendix() ).resolves.toBe( false );
     } );
 
-    it( 'reports a failed Mendix logout without rejecting when AbortController is not available', async() => {
-        const originalAbortController = global.AbortController;
-        delete global.AbortController;
-        registerMendixLogout( 'https://apps.example.com/' );
-
-        try {
-            await expect( logoutFromMendix() ).resolves.toBe( false );
-        } finally {
-            global.AbortController = originalAbortController;
-        }
-    } );
-
-    it( 'stops waiting for a Mendix logout that does not respond', async() => {
-        jest.useFakeTimers();
-        global.fetch.mockImplementation( ( _, { signal } ) => new Promise( ( _resolve, reject ) => {
-            signal.addEventListener( 'abort', () => reject( new Error( 'aborted' ) ) );
-        } ) );
-        registerMendixLogout( 'https://apps.example.com/' );
-
-        const pending = logoutFromMendix();
-        await jest.advanceTimersByTimeAsync( 5000 );
-
-        await expect( pending ).resolves.toBe( false );
-    } );
-
     describe( 'pre-logout pipeline contribution', () => {
         const createDeferred = () => {
             const deferred = {};
@@ -129,23 +104,16 @@ describe( 'mendixEmbeddedLogout', () => {
             expect( global.fetch ).not.toHaveBeenCalled();
         } );
 
-        it( 'continues the pipeline once the Mendix logout has finished', async() => {
-            let finishLogout;
-            global.fetch.mockImplementation( () => new Promise( resolve => { finishLogout = resolve; } ) );
+        it( 'continues the pipeline without waiting for the Mendix logout to finish', async() => {
+            global.fetch.mockImplementation( () => new Promise( () => {} ) );
             registerMendixLogout( 'https://apps.example.com/' );
             const step = await loadStep();
             const stepDeferred = createDeferred();
-            const continued = jest.fn();
-            stepDeferred.promise.then( continued );
 
             step.workFunction( step, stepDeferred );
-            await Promise.resolve();
 
-            expect( global.fetch ).toHaveBeenCalledTimes( 1 );
-            expect( continued ).not.toHaveBeenCalled();
-
-            finishLogout( { ok: true, status: 200 } );
             await expect( stepDeferred.promise ).resolves.toBeUndefined();
+            expect( global.fetch ).toHaveBeenCalledTimes( 1 );
         } );
 
         it( 'continues the pipeline when the Mendix logout fails', async() => {
@@ -155,32 +123,6 @@ describe( 'mendixEmbeddedLogout', () => {
             const stepDeferred = createDeferred();
 
             step.workFunction( step, stepDeferred );
-
-            await expect( stepDeferred.promise ).resolves.toBeUndefined();
-        } );
-
-        it( 'continues the pipeline when the Mendix logout endpoint is not available', async() => {
-            global.fetch.mockResolvedValue( { ok: false, status: 404 } );
-            registerMendixLogout( 'https://apps.example.com/' );
-            const step = await loadStep();
-            const stepDeferred = createDeferred();
-
-            step.workFunction( step, stepDeferred );
-
-            await expect( stepDeferred.promise ).resolves.toBeUndefined();
-        } );
-
-        it( 'continues the pipeline when the Mendix logout does not respond', async() => {
-            jest.useFakeTimers();
-            global.fetch.mockImplementation( ( _, { signal } ) => new Promise( ( _resolve, reject ) => {
-                signal.addEventListener( 'abort', () => reject( new Error( 'aborted' ) ) );
-            } ) );
-            registerMendixLogout( 'https://apps.example.com/' );
-            const step = await loadStep();
-            const stepDeferred = createDeferred();
-
-            step.workFunction( step, stepDeferred );
-            await jest.advanceTimersByTimeAsync( 5000 );
 
             await expect( stepDeferred.promise ).resolves.toBeUndefined();
         } );
