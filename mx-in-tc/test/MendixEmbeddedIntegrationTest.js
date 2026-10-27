@@ -16,6 +16,10 @@ jest.mock( '../src/js/mendixEmbeddedAuthentication', () => ( {
     ensureHasValidSession: jest.fn()
 } ) );
 
+jest.mock( '../src/js/mendixEmbeddedLogout', () => ( {
+    registerMendixLogout: jest.fn()
+} ) );
+
 jest.mock(
     'https://apps.example.com/dist/embedded-index.js',
     () => ( {
