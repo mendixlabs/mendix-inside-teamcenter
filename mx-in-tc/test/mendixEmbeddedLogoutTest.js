@@ -26,7 +26,7 @@ describe( 'mendixEmbeddedLogout', () => {
     } );
 
     it( 'resolves without requests when no Mendix application is registered', async() => {
-        await expect( logoutFromMendix() ).resolves.toBe( true );
+        await logoutFromMendix();
         expect( global.fetch ).not.toHaveBeenCalled();
     } );
 
@@ -35,8 +35,9 @@ describe( 'mendixEmbeddedLogout', () => {
         registerMendixLogout( 'https://apps.example.com/' );
         registerMendixLogout( 'https://other.example.com/' );
 
-        await expect( logoutFromMendix() ).resolves.toBe( true );
+        await logoutFromMendix();
 
+        expect( console.error ).not.toHaveBeenCalled();
         expect( global.fetch.mock.calls.map( ( [ url ] ) => url.toString() ) ).toEqual( [
             'https://apps.example.com/rest/tcsso/v1/logout',
             'https://other.example.com/rest/tcsso/v1/logout'
@@ -60,15 +61,16 @@ describe( 'mendixEmbeddedLogout', () => {
         global.fetch.mockImplementation( response );
         registerMendixLogout( 'https://apps.example.com/' );
 
-        await expect( logoutFromMendix() ).resolves.toBe( false );
+        await expect( logoutFromMendix() ).resolves.toBeUndefined();
         expect( console.error ).toHaveBeenCalledWith( expect.stringContaining( 'https://apps.example.com/' ), ...extraArgs );
     } );
 
-    it( 'reports a failed Mendix logout without rejecting when fetch is not available', async() => {
+    it( 'logs a failed Mendix logout without rejecting when fetch is not available', async() => {
         delete global.fetch;
         registerMendixLogout( 'https://apps.example.com/' );
 
-        await expect( logoutFromMendix() ).resolves.toBe( false );
+        await expect( logoutFromMendix() ).resolves.toBeUndefined();
+        expect( console.error ).toHaveBeenCalledWith( expect.stringContaining( 'https://apps.example.com/' ), expect.any( Error ) );
     } );
 
     describe( 'pre-logout pipeline contribution', () => {

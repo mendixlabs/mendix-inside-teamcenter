@@ -12,23 +12,23 @@ export const registerMendixLogout = ( url ) => {
 };
 
 /**
- * Logs out of every registered Mendix application.
+ * Logs out of every registered Mendix application. Failures are logged, never rejected.
  *
- * @returns {Promise<boolean>} Resolves with true when every logout succeeded. Never rejects.
+ * @returns {Promise<void>} Settles when every logout request has finished.
  */
 export const logoutFromMendix = async() => {
     const urls = Array.from( mendixUrls );
     mendixUrls.clear();
 
-    const results = await Promise.all( urls.map( logout ) );
-    return results.every( Boolean );
+    await Promise.all( urls.map( logout ) );
 };
 
 /**
  * Logs out of a single Mendix application by sending a POST request to its logout endpoint.
- * 
+ * Logs failures instead of rejecting, because the logout is not awaited by the pipeline step.
+ *
  * @param {string} url The base URL of the Mendix application to log out from.
- * @returns {Promise<boolean>} Resolves with true if the logout succeeded, false otherwise.
+ * @returns {Promise<void>} Settles when the logout request has finished.
  */
 const logout = async( url ) => {
     try {
@@ -43,10 +43,8 @@ const logout = async( url ) => {
         if ( !response.ok ) {
             console.error( `Mendix logout at ${url} failed with status ${response.status}.` );
         }
-        return response.ok;
     } catch ( error ) {
         console.error( `Mendix logout at ${url} failed.`, error );
-        return false;
     }
 };
 
