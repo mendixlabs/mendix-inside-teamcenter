@@ -1,3 +1,5 @@
+import { mendixCleanupAll } from './mendixEmbeddedService';
+
 export const MENDIX_LOGOUT_CONTRIBUTION_KEY = 'preLogoutPipeline';
 export const MENDIX_LOGOUT_STEP_NAME = 'mendixLogout';
 
@@ -12,11 +14,14 @@ export const registerMendixLogout = ( url ) => {
 };
 
 /**
- * Logs out of every registered Mendix application. Failures are logged, never rejected.
+ * Cleans up every mounted Mendix application and then logs out of every registered Mendix
+ * application. Failures are logged, never rejected.
  *
  * @returns {Promise<void>} Settles when every logout request has finished.
  */
 export const logoutFromMendix = async() => {
+    mendixCleanupAll();
+
     const urls = Array.from( mendixUrls );
     mendixUrls.clear();
 

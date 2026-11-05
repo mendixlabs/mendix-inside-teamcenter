@@ -4,6 +4,7 @@ import { ensureHasValidSession } from '../src/js/mendixEmbeddedAuthentication';
 import { getResolvedMendixConfiguration, MendixEmbeddedError } from '../src/js/mendixEmbeddedUtils';
 import { registerMendixLogout } from '../src/js/mendixEmbeddedLogout';
 import {
+    mendixCleanupAll,
     mendixCleanupFunction,
     mountMendix
 } from '../src/js/mendixEmbeddedService';
@@ -132,6 +133,22 @@ describe( 'mendixEmbeddedService', () => {
             mendixCleanupFunction( refs( containerRef ) );
             mendixCleanupFunction( refs( containerRef ) );
             expect( unmount ).toHaveBeenCalledTimes( 1 );
+        } );
+
+        it( 'cleans up every mounted app at once', async() => {
+            const unmount = jest.fn();
+            renderApp.mockReturnValue( unmount );
+            const otherContainerRef = { current: document.createElement( 'div' ) };
+            await mount();
+            await mountMendix( refs( otherContainerRef ), null, {}, reload );
+            expect( renderApp ).toHaveBeenCalledTimes( 2 );
+
+            mendixCleanupAll();
+            mendixCleanupAll();
+
+            expect( unmount ).toHaveBeenCalledTimes( 2 );
+            expect( containerRef.current.childElementCount ).toBe( 0 );
+            expect( otherContainerRef.current.childElementCount ).toBe( 0 );
         } );
 
         it( 'aborts authentication when the component is unmounted', async() => {

@@ -7,6 +7,11 @@ import mendixLogoutContribution, {
     MENDIX_LOGOUT_STEP_NAME,
     registerMendixLogout
 } from '../src/js/mendixEmbeddedLogout';
+import { mendixCleanupAll } from '../src/js/mendixEmbeddedService';
+
+jest.mock( '../src/js/mendixEmbeddedService', () => ( {
+    mendixCleanupAll: jest.fn()
+} ) );
 
 describe( 'mendixEmbeddedLogout', () => {
     const originalFetch = global.fetch;
@@ -17,6 +22,7 @@ describe( 'mendixEmbeddedLogout', () => {
         // Start every test without registered applications.
         await logoutFromMendix();
         global.fetch.mockClear();
+        mendixCleanupAll.mockClear();
     } );
 
     afterEach( () => {
@@ -28,6 +34,20 @@ describe( 'mendixEmbeddedLogout', () => {
     it( 'resolves without requests when no Mendix application is registered', async() => {
         await logoutFromMendix();
         expect( global.fetch ).not.toHaveBeenCalled();
+    } );
+
+    it( 'cleans up the mounted applications before logging out', async() => {
+        global.fetch.mockImplementation( async() => {
+            expect( mendixCleanupAll ).toHaveBeenCalledTimes( 1 );
+            return { ok: true, status: 200 };
+        } );
+        registerMendixLogout( 'https://apps.example.com/' );
+
+        await logoutFromMendix();
+
+        expect( console.error ).not.toHaveBeenCalled();
+        expect( mendixCleanupAll ).toHaveBeenCalledTimes( 1 );
+        expect( global.fetch ).toHaveBeenCalledTimes( 1 );
     } );
 
     it( 'logs out of each registered application once', async() => {

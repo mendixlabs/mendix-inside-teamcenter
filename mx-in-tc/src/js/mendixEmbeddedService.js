@@ -9,7 +9,8 @@ import {
 
 const RELOAD_EVENT = 'embedded-app-reload';
 
-const loadByContainerRef = new WeakMap();
+// A Map instead of a WeakMap so that every mounted application can be cleaned up on logout.
+const loadByContainerRef = new Map();
 
 export const mendixEmbeddedRenderFunction = ( { elementRefList, viewModel, actions } ) => {
     const { errorCode } = viewModel.data;
@@ -110,6 +111,16 @@ export const mendixCleanupFunction = ( elementRefList ) => {
 
     loadByContainerRef.delete( containerRef );
     load?.controller.abort();
+};
+
+/**
+ * Cleans up every mounted Mendix application, for example before logging out of Mendix.
+ */
+export const mendixCleanupAll = () => {
+    const loads = Array.from( loadByContainerRef.values() );
+    loadByContainerRef.clear();
+
+    loads.forEach( load => load.controller.abort() );
 };
 
 export const reloadPage = () => window.location.reload();
