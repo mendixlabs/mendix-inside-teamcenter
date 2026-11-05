@@ -16,6 +16,10 @@ jest.mock( '../src/js/mendixEmbeddedAuthentication', () => ( {
     ensureHasValidSession: jest.fn()
 } ) );
 
+jest.mock( '../src/js/mendixEmbeddedLogout', () => ( {
+    registerMendixLogout: jest.fn()
+} ) );
+
 jest.mock(
     'https://apps.example.com/dist/embedded-index.js',
     () => ( {
@@ -172,11 +176,11 @@ describe( 'mendixEmbedded integration', () => {
             '/rest/tcsso/v1/validate-session'
         );
         expect( global.fetch.mock.calls[2][0].pathname ).toBe(
-            '/rest/tcsso/v1/token-login'
+            '/rest/mx-in-aw/v1/token-login'
         );
         expect( renderApp ).not.toHaveBeenCalled();
         await act( async() =>
-            finishExchange( { ok: true, status: 200, json: async() => ( { success: true } ) } )
+            finishExchange( { ok: true, status: 200, text: async() => '' } )
         );
 
         await waitFor( () => expect( renderApp ).toHaveBeenCalledTimes( 1 ) );
@@ -204,7 +208,7 @@ describe( 'mendixEmbedded integration', () => {
         expect( openPopup ).toHaveBeenCalledTimes( 1 );
         expect( soaService.post ).not.toHaveBeenCalled();
         expect(
-            global.fetch.mock.calls.some( ( [ url ] ) => url.pathname === '/rest/tcsso/v1/token-login' )
+            global.fetch.mock.calls.some( ( [ url ] ) => url.pathname === '/rest/mx-in-aw/v1/token-login' )
         ).toBe( false );
     } );
 

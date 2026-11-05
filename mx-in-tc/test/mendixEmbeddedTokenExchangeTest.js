@@ -11,10 +11,10 @@ jest.mock( 'soa/kernel/soaService', () => ( { post: jest.fn() } ) );
 const APP_URL = 'https://apps.example.com/my-app/';
 const TOKEN = 'test-access-token';
 
-const exchangeResponse = ( body ) => ( {
-    ok: true,
-    status: 200,
-    json: async() => body
+const exchangeResponse = ( status, body = '' ) => ( {
+    ok: status === 200,
+    status,
+    text: async() => body
 } );
 
 describe( 'mendixEmbeddedTokenExchange', () => {
@@ -88,7 +88,7 @@ describe( 'mendixEmbeddedTokenExchange', () => {
         it( 'posts the token in the body and the discriminator in the query', async() => {
             const controller = new AbortController();
             const token = 'test/token+with?special=&characters';
-            global.fetch = jest.fn().mockResolvedValue( exchangeResponse( { success: true } ) );
+            global.fetch = jest.fn().mockResolvedValue( exchangeResponse( 200 ) );
 
             await expect(
                 exchangeAccessToken( APP_URL, token, 'session/1+2', controller.signal )
@@ -96,12 +96,12 @@ describe( 'mendixEmbeddedTokenExchange', () => {
 
             const [ tokenUrl, options ] = global.fetch.mock.calls[0];
             expect( tokenUrl.toString() ).toBe(
-                'https://apps.example.com/my-app/rest/tcsso/v1/token-login?discriminator=session%2F1%2B2'
+                'https://apps.example.com/my-app/rest/mx-in-aw/v1/token-login?discriminator=session%2F1%2B2'
             );
             expect( tokenUrl.searchParams.has( 'token' ) ).toBe( false );
             expect( options ).toEqual( {
                 method: 'POST',
-                headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                headers: { Accept: 'text/plain', 'Content-Type': 'application/json' },
                 body: JSON.stringify( { token } ),
                 mode: 'cors',
                 credentials: 'include',
@@ -110,31 +110,8 @@ describe( 'mendixEmbeddedTokenExchange', () => {
         } );
 
         it.each( [
-            [
-                'success false',
-                () => Promise.resolve(
-                    exchangeResponse( { success: false, error: 'Invalid token' } )
-                )
-            ],
-            [ 'a non-boolean success', () => Promise.resolve( exchangeResponse( { success: 'true' } ) ) ],
-            [ 'a bare true', () => Promise.resolve( exchangeResponse( true ) ) ],
-            [ 'null', () => Promise.resolve( exchangeResponse( null ) ) ],
-            [
-                'HTTP 500 with success true',
-                () => Promise.resolve( { ok: false, status: 500, json: async() => ( { success: true } ) } )
-            ],
-            [ 'HTTP 401', () => Promise.resolve( { ok: false, status: 401 } ) ],
-            [ 'HTTP 500', () => Promise.resolve( { ok: false, status: 500 } ) ],
-            [
-                'a non-JSON body',
-                () => Promise.resolve( {
-                    ok: true,
-                    status: 200,
-                    json: async() => {
-                        throw new SyntaxError( 'Unexpected token' );
-                    }
-                } )
-            ],
+            [ 'HTTP 500', () => Promise.resolve( exchangeResponse( 500, 'Invalid token' ) ) ],
+            [ 'HTTP 401', () => Promise.resolve( exchangeResponse( 401 ) ) ],
             [ 'a network error', () => Promise.reject( new TypeError( 'Failed to fetch' ) ) ]
         ] )( 'reports no session when the exchange returns %s', async( _description, response ) => {
             global.fetch = jest.fn().mockImplementation( response );
