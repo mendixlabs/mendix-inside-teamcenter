@@ -15,11 +15,9 @@ const sessionResponse = ( valid ) => ( {
     json: async() => valid
 } );
 
-const tokenLoginResponse = ( success ) => ( {
-    ok: true,
-    status: 200,
-    json: async() => ( success ? { success } : { success, error: 'Login failed' } )
-} );
+const tokenLoginResponse = ( success ) => ( success ?
+    { ok: true, status: 200, text: async() => '' } :
+    { ok: false, status: 500, text: async() => 'Login failed' } );
 
 describe( 'mendixEmbeddedAuthentication', () => {
     const originalFetch = global.fetch;
@@ -50,7 +48,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     if ( url === '/getSessionDiscriminator' ) {
                         return { ok: true, text: async() => 'current-session' };
                     }
-                    if ( url.pathname === '/rest/tcsso/v1/token-login' ) {
+                    if ( url.pathname === '/rest/mx-in-aw/v1/token-login' ) {
                         return tokenLoginResponse( true );
                     }
                     return sessionResponse( global.fetch.mock.calls.length > 1 );
@@ -73,9 +71,9 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 expect(
                     global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
                 ).toEqual( [
-                    '/rest/tcsso/v1/validate-session',
+                    '/rest/mx-in-aw/v1/validate-session',
                     '/getSessionDiscriminator',
-                    '/rest/tcsso/v1/token-login'
+                    '/rest/mx-in-aw/v1/token-login'
                 ] );
                 expect( window.open ).not.toHaveBeenCalled();
             } );
@@ -91,9 +89,9 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 expect(
                     global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
                 ).toEqual( [
-                    '/rest/tcsso/v1/validate-session',
+                    '/rest/mx-in-aw/v1/validate-session',
                     '/getSessionDiscriminator',
-                    '/rest/tcsso/v1/validate-session'
+                    '/rest/mx-in-aw/v1/validate-session'
                 ] );
                 expect( window.open ).toHaveBeenCalledTimes( 1 );
             } );
@@ -149,7 +147,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 expect( soaService.post ).not.toHaveBeenCalled();
                 expect( global.fetch.mock.calls[0][0].pathname ).toBe(
-                    '/my-app/rest/tcsso/v1/validate-session'
+                    '/my-app/rest/mx-in-aw/v1/validate-session'
                 );
                 finishInitialValidation( sessionResponse( false ) );
                 await waitFor( () =>
@@ -179,11 +177,11 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 const [ tokenUrl, options ] = global.fetch.mock.calls[2];
                 expect( tokenUrl.toString() ).toBe(
-                    'https://apps.example.com/my-app/rest/tcsso/v1/token-login?discriminator=session%2F1%2B2'
+                    'https://apps.example.com/my-app/rest/mx-in-aw/v1/token-login?discriminator=session%2F1%2B2'
                 );
                 expect( options ).toEqual( {
                     method: 'POST',
-                    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                    headers: { Accept: 'text/plain', 'Content-Type': 'application/json' },
                     body: JSON.stringify( { token } ),
                     mode: 'cors',
                     credentials: 'include',
@@ -193,7 +191,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 await pending;
 
                 expect( global.fetch.mock.calls.map( ( [ url ] ) => url.toString() ) ).toEqual( [
-                    'https://apps.example.com/my-app/rest/tcsso/v1/validate-session',
+                    'https://apps.example.com/my-app/rest/mx-in-aw/v1/validate-session',
                     '/getSessionDiscriminator',
                     tokenUrl.toString()
                 ] );
@@ -223,7 +221,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     expect(
                         global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
                     ).toEqual( [
-                        '/rest/tcsso/v1/validate-session',
+                        '/rest/mx-in-aw/v1/validate-session',
                         '/getSessionDiscriminator'
                     ] );
                     expect( window.open ).not.toHaveBeenCalled();
@@ -231,7 +229,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
             );
 
             it.each( [
-                [ 'success false', () => Promise.resolve( tokenLoginResponse( false ) ) ],
+                [ 'HTTP 500', () => Promise.resolve( tokenLoginResponse( false ) ) ],
                 [ 'a network error', () => Promise.reject( new TypeError( 'Failed to fetch' ) ) ]
             ] )(
                 'reports a failed login without revalidating or popup SSO when the exchange returns %s',
@@ -252,7 +250,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     expect( window.open ).not.toHaveBeenCalled();
                     expect( global.fetch ).toHaveBeenCalledTimes( 3 );
                     expect( global.fetch.mock.calls[2][0].pathname ).toBe(
-                        '/rest/tcsso/v1/token-login'
+                        '/rest/mx-in-aw/v1/token-login'
                     );
                 }
             );
@@ -318,7 +316,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 async( failure ) => {
                     const warn = jest.spyOn( console, 'warn' ).mockImplementation( () => {} );
                     const isTokenExchange = ( [ url ] ) =>
-                        url.pathname === '/rest/tcsso/v1/token-login';
+                        url.pathname === '/rest/mx-in-aw/v1/token-login';
                     global.fetch = jest.fn().mockImplementation( async( url ) => {
                         if ( url === '/getSessionDiscriminator' ) {
                             if ( failure === 'network-error' ) {
@@ -441,7 +439,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 expect( global.fetch ).toHaveBeenCalledTimes( 1 );
                 expect( global.fetch.mock.calls[0][0].pathname ).toBe(
-                    '/rest/tcsso/v1/validate-session'
+                    '/rest/mx-in-aw/v1/validate-session'
                 );
                 expect( soaService.post ).not.toHaveBeenCalled();
                 expect( window.open ).not.toHaveBeenCalled();
@@ -569,7 +567,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 'width=200,height=300'
             );
             expect( window.open.mock.calls[0][0].toString() ).toBe(
-                'https://apps.example.com/rest/tcsso/v1/login?discriminator=session-discriminator'
+                'https://apps.example.com/rest/mx-in-aw/v1/pop-up-login?discriminator=session-discriminator'
             );
         } );
 
@@ -626,7 +624,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 await pending;
                 expect( global.fetch ).toHaveBeenCalledTimes( 3 );
                 expect( global.fetch.mock.calls[2][0].pathname ).toBe(
-                    '/rest/tcsso/v1/validate-session'
+                    '/rest/mx-in-aw/v1/validate-session'
                 );
                 expect( popup.close ).not.toHaveBeenCalled();
                 expect( jest.getTimerCount() ).toBe( 0 );

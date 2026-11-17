@@ -2,7 +2,9 @@
 import { waitFor } from '@testing-library/react';
 import { ensureHasValidSession } from '../src/js/mendixEmbeddedAuthentication';
 import { getResolvedMendixConfiguration, MendixEmbeddedError } from '../src/js/mendixEmbeddedUtils';
+import { registerMendixLogout } from '../src/js/mendixEmbeddedLogout';
 import {
+    mendixCleanupAll,
     mendixCleanupFunction,
     mountMendix
 } from '../src/js/mendixEmbeddedService';
@@ -10,6 +12,10 @@ import { render as renderApp } from 'https://apps.example.com/dist/embedded-inde
 
 jest.mock( '../src/js/mendixEmbeddedAuthentication', () => ( {
     ensureHasValidSession: jest.fn()
+} ) );
+
+jest.mock( '../src/js/mendixEmbeddedLogout', () => ( {
+    registerMendixLogout: jest.fn()
 } ) );
 
 jest.mock( '../src/js/mendixEmbeddedUtils', () => ( {
@@ -70,6 +76,7 @@ describe( 'mendixEmbeddedService', () => {
             'https://apps.example.com/', 'P2612.2026082800', expect.any( AbortSignal )
         );
         expect( result ).toEqual( { errorCode: 'LOGIN_FAILED' } );
+        expect( registerMendixLogout ).not.toHaveBeenCalled();
     } );
 
     it( 'uses the unexpected error code for unrecognized failures', async() => {
@@ -122,9 +129,26 @@ describe( 'mendixEmbeddedService', () => {
             await mount();
             expect( renderApp ).toHaveBeenCalledTimes( 1 );
             expect( ensureHasValidSession ).toHaveBeenCalledTimes( 1 );
+            expect( registerMendixLogout ).toHaveBeenCalledWith( 'https://apps.example.com/' );
             mendixCleanupFunction( refs( containerRef ) );
             mendixCleanupFunction( refs( containerRef ) );
             expect( unmount ).toHaveBeenCalledTimes( 1 );
+        } );
+
+        it( 'cleans up every mounted app at once', async() => {
+            const unmount = jest.fn();
+            renderApp.mockReturnValue( unmount );
+            const otherContainerRef = { current: document.createElement( 'div' ) };
+            await mount();
+            await mountMendix( refs( otherContainerRef ), null, {}, reload );
+            expect( renderApp ).toHaveBeenCalledTimes( 2 );
+
+            mendixCleanupAll();
+            mendixCleanupAll();
+
+            expect( unmount ).toHaveBeenCalledTimes( 2 );
+            expect( containerRef.current.childElementCount ).toBe( 0 );
+            expect( otherContainerRef.current.childElementCount ).toBe( 0 );
         } );
 
         it( 'aborts authentication when the component is unmounted', async() => {
