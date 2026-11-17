@@ -37,7 +37,7 @@ export const logoutFromMendix = async() => {
  */
 const logout = async( url ) => {
     try {
-        const response = await fetch( new URL( 'rest/tcsso/v1/logout', url ), {
+        const response = await fetch( new URL( 'rest/mx-in-aw/v1/logout', url ), {
             method: 'POST',
             mode: 'cors',
             credentials: 'include',

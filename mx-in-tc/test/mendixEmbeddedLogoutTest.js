@@ -59,8 +59,8 @@ describe( 'mendixEmbeddedLogout', () => {
 
         expect( console.error ).not.toHaveBeenCalled();
         expect( global.fetch.mock.calls.map( ( [ url ] ) => url.toString() ) ).toEqual( [
-            'https://apps.example.com/rest/tcsso/v1/logout',
-            'https://other.example.com/rest/tcsso/v1/logout'
+            'https://apps.example.com/rest/mx-in-aw/v1/logout',
+            'https://other.example.com/rest/mx-in-aw/v1/logout'
         ] );
         expect( global.fetch.mock.calls[0][1] ).toEqual( expect.objectContaining( {
             method: 'POST',

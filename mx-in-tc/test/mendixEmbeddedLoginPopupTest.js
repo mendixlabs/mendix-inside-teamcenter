@@ -35,7 +35,7 @@ describe( 'mendixEmbeddedLoginPopup', () => {
                 'width=200,height=300'
             );
             expect( window.open.mock.calls[0][0].toString() ).toBe(
-                'https://apps.example.com/my-app/rest/tcsso/v1/login?discriminator=session%2F1%2B2'
+                'https://apps.example.com/my-app/rest/mx-in-aw/v1/pop-up-login?discriminator=session%2F1%2B2'
             );
             expect( popup.focus ).toHaveBeenCalled();
         } );

@@ -173,7 +173,7 @@ describe( 'mendixEmbedded integration', () => {
 
         await waitFor( () => expect( finishExchange ).toBeDefined() );
         expect( global.fetch.mock.calls[0][0].pathname ).toBe(
-            '/rest/tcsso/v1/validate-session'
+            '/rest/mx-in-aw/v1/validate-session'
         );
         expect( global.fetch.mock.calls[2][0].pathname ).toBe(
             '/rest/mx-in-aw/v1/token-login'

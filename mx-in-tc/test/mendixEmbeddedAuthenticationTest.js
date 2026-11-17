@@ -71,7 +71,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 expect(
                     global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
                 ).toEqual( [
-                    '/rest/tcsso/v1/validate-session',
+                    '/rest/mx-in-aw/v1/validate-session',
                     '/getSessionDiscriminator',
                     '/rest/mx-in-aw/v1/token-login'
                 ] );
@@ -89,9 +89,9 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 expect(
                     global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
                 ).toEqual( [
-                    '/rest/tcsso/v1/validate-session',
+                    '/rest/mx-in-aw/v1/validate-session',
                     '/getSessionDiscriminator',
-                    '/rest/tcsso/v1/validate-session'
+                    '/rest/mx-in-aw/v1/validate-session'
                 ] );
                 expect( window.open ).toHaveBeenCalledTimes( 1 );
             } );
@@ -147,7 +147,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 expect( soaService.post ).not.toHaveBeenCalled();
                 expect( global.fetch.mock.calls[0][0].pathname ).toBe(
-                    '/my-app/rest/tcsso/v1/validate-session'
+                    '/my-app/rest/mx-in-aw/v1/validate-session'
                 );
                 finishInitialValidation( sessionResponse( false ) );
                 await waitFor( () =>
@@ -191,7 +191,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 await pending;
 
                 expect( global.fetch.mock.calls.map( ( [ url ] ) => url.toString() ) ).toEqual( [
-                    'https://apps.example.com/my-app/rest/tcsso/v1/validate-session',
+                    'https://apps.example.com/my-app/rest/mx-in-aw/v1/validate-session',
                     '/getSessionDiscriminator',
                     tokenUrl.toString()
                 ] );
@@ -221,7 +221,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                     expect(
                         global.fetch.mock.calls.map( ( [ url ] ) => url.pathname || url )
                     ).toEqual( [
-                        '/rest/tcsso/v1/validate-session',
+                        '/rest/mx-in-aw/v1/validate-session',
                         '/getSessionDiscriminator'
                     ] );
                     expect( window.open ).not.toHaveBeenCalled();
@@ -439,7 +439,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
 
                 expect( global.fetch ).toHaveBeenCalledTimes( 1 );
                 expect( global.fetch.mock.calls[0][0].pathname ).toBe(
-                    '/rest/tcsso/v1/validate-session'
+                    '/rest/mx-in-aw/v1/validate-session'
                 );
                 expect( soaService.post ).not.toHaveBeenCalled();
                 expect( window.open ).not.toHaveBeenCalled();
@@ -567,7 +567,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 'width=200,height=300'
             );
             expect( window.open.mock.calls[0][0].toString() ).toBe(
-                'https://apps.example.com/rest/tcsso/v1/login?discriminator=session-discriminator'
+                'https://apps.example.com/rest/mx-in-aw/v1/pop-up-login?discriminator=session-discriminator'
             );
         } );
 
@@ -624,7 +624,7 @@ describe( 'mendixEmbeddedAuthentication', () => {
                 await pending;
                 expect( global.fetch ).toHaveBeenCalledTimes( 3 );
                 expect( global.fetch.mock.calls[2][0].pathname ).toBe(
-                    '/rest/tcsso/v1/validate-session'
+                    '/rest/mx-in-aw/v1/validate-session'
                 );
                 expect( popup.close ).not.toHaveBeenCalled();
                 expect( jest.getTimerCount() ).toBe( 0 );

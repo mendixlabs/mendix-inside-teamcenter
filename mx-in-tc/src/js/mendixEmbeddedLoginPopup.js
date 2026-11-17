@@ -9,7 +9,7 @@ const POPUP_NAME = 'mxInTcSso';
  * cannot issue user access tokens.
  *
  * Flow:
- * 1. Open the Mendix SSO endpoint (`rest/tcsso/v1/login`) in a named popup, passing the
+ * 1. Open the Mendix SSO endpoint (`rest/mx-in-aw/v1/pop-up-login`) in a named popup, passing the
  *    Teamcenter session discriminator. If the window does not have focus, the popup is opened
  *    when it regains focus.
  * 2. The popup goes through Teamcenter SSO, after which the Mendix runtime sets its session
@@ -28,7 +28,7 @@ const POPUP_NAME = 'mxInTcSso';
  * @returns {Promise<void>} Resolves once the popup is closed.
  */
 export const openLoginPopup = ( url, discriminator, signal ) => {
-    const loginUrl = new URL( 'rest/tcsso/v1/login', url );
+    const loginUrl = new URL( 'rest/mx-in-aw/v1/pop-up-login', url );
     loginUrl.searchParams.set( 'discriminator', discriminator );
 
     return openPopup( loginUrl, signal );

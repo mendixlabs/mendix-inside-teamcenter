@@ -62,7 +62,7 @@ const authenticateWithTokenExchange = async( url, signal ) => {
 const hasValidSession = async( url, signal ) => {
     try {
         const response = await fetch(
-            new URL( 'rest/tcsso/v1/validate-session', url ),
+            new URL( 'rest/mx-in-aw/v1/validate-session', url ),
             { credentials: 'include', signal }
         );
 
