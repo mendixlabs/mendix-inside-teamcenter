@@ -2,6 +2,8 @@
 import './setupAbortSignal';
 import { act, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithCtx } from '@swf/core/test/testUtils';
+import { createStore } from 'redux';
+import { _dispatchCtx } from 'js/reactAppCtx';
 import localizationService from 'js/awDuiLocalizationService';
 import soaService from 'soa/kernel/soaService';
 import MendixEmbedded from 'viewmodel/MendixEmbeddedViewModel';
@@ -123,6 +125,27 @@ describe( 'mendixEmbedded integration', () => {
                 } )
             )
         );
+    } );
+
+    it( 'renders with the Active Workspace theme root class and remounts when it changes', async() => {
+        const cleanup = jest.fn();
+        renderApp.mockReturnValue( cleanup );
+        const store = createStore( _dispatchCtx, { theme: 'ui-darkSiemensTheme' } );
+        const view = renderWithCtx( <MendixEmbedded config='https://apps.example.com/' />, { store } );
+
+        await waitFor( () => expect( renderApp ).toHaveBeenCalledTimes( 1 ) );
+        expect( renderApp ).toHaveBeenLastCalledWith(
+            expect.any( HTMLElement ), expect.objectContaining( { rootClass: 'theme-ui-darkSiemensTheme theme-dark' } )
+        );
+
+        act( () => { store.dispatch( { type: 'update', path: 'theme', value: 'ui-lightSiemensTheme' } ); } );
+
+        await waitFor( () => expect( renderApp ).toHaveBeenCalledTimes( 2 ) );
+        expect( cleanup ).toHaveBeenCalledTimes( 1 );
+        expect( renderApp ).toHaveBeenLastCalledWith(
+            expect.any( HTMLElement ), expect.objectContaining( { rootClass: 'theme-ui-lightSiemensTheme' } )
+        );
+        await act( async() => view.unmount() );
     } );
 
     it( 'falls back to the generic localized message for errors without a code', async() => {

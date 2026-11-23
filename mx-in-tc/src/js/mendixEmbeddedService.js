@@ -4,6 +4,7 @@ import { ensureHasValidSession } from './mendixEmbeddedAuthentication';
 import { registerMendixLogout } from './mendixEmbeddedLogout';
 import {
     getResolvedMendixConfiguration,
+    getThemeRootClass,
     MendixEmbeddedError
 } from './mendixEmbeddedUtils';
 
@@ -25,14 +26,16 @@ export const mendixEmbeddedRenderFunction = ( { elementRefList, viewModel, actio
     </>;
 };
 
-export const mountMendix = async( elementRefList, config, context, reloadAction, tcServerVersion ) => {
+export const mountMendix = async( elementRefList, config, context, reloadAction, tcServerVersion, awTheme ) => {
     const containerRef = elementRefList.get( 'mendixContainer' );
     let signal;
 
     try {
         const { url, parameters, configurationKey } = getResolvedMendixConfiguration( config, context );
+        const rootClass = getThemeRootClass( awTheme );
+        const loadKey = JSON.stringify( { configurationKey, rootClass } );
 
-        if ( loadByContainerRef.get( containerRef )?.configurationKey === configurationKey ) {
+        if ( loadByContainerRef.get( containerRef )?.loadKey === loadKey ) {
             return;
         }
 
@@ -41,7 +44,7 @@ export const mountMendix = async( elementRefList, config, context, reloadAction,
         const controller = new AbortController();
         signal = controller.signal;
 
-        loadByContainerRef.set( containerRef, { configurationKey, controller } );
+        loadByContainerRef.set( containerRef, { loadKey, controller } );
 
         await ensureHasValidSession( url, tcServerVersion, signal );
         registerMendixLogout( url );
@@ -60,7 +63,7 @@ export const mountMendix = async( elementRefList, config, context, reloadAction,
             throw new MendixEmbeddedError( 'CONTAINER_NOT_FOUND' );
         }
 
-        await renderMendixApp( app, containerRef.current, url, parameters, signal, () => {
+        await renderMendixApp( app, containerRef.current, url, parameters, rootClass, signal, () => {
             mendixCleanupFunction( elementRefList );
             reloadAction( { elementRefList } );
         } );
@@ -81,7 +84,7 @@ export const mountMendix = async( elementRefList, config, context, reloadAction,
     }
 };
 
-const renderMendixApp = async( app, container, url, parameters, signal, onReload ) => {
+const renderMendixApp = async( app, container, url, parameters, rootClass, signal, onReload ) => {
     const appContainer = document.createElement( 'div' );
     // The Mendix app sizes itself to this element, so make it fill the container by setting h-12 (full height)
     appContainer.className = 'h-12';
@@ -98,7 +101,7 @@ const renderMendixApp = async( app, container, url, parameters, signal, onReload
         }
     }, { once: true } );
 
-    unmount = await app.render( appContainer, { remoteUrl: url, minHeight: '100vh', parameters } );
+    unmount = await app.render( appContainer, { remoteUrl: url, minHeight: '100vh', parameters, rootClass } );
 
     if ( signal.aborted ) {
         unmount?.();

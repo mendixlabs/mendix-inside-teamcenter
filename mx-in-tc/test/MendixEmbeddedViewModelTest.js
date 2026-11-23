@@ -21,7 +21,7 @@ describe( 'mendixEmbedded SWF lifecycle', () => {
         renderWithCtx( <MendixEmbedded config='https://apps.example.com/?mode=view' /> );
         await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
             expect.any( Map ), 'https://apps.example.com/?mode=view',
-            {}, expect.any( Function ), undefined
+            {}, expect.any( Function ), undefined, undefined
         ) );
     } );
 
@@ -31,7 +31,7 @@ describe( 'mendixEmbedded SWF lifecycle', () => {
         } );
         await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
             expect.any( Map ), 'https://apps.example.com/',
-            {}, expect.any( Function ), 'P2612.2026082800'
+            {}, expect.any( Function ), 'P2612.2026082800', undefined
         ) );
     } );
 
@@ -42,7 +42,7 @@ describe( 'mendixEmbedded SWF lifecycle', () => {
         renderWithCtx( <MendixEmbedded config='https://apps.example.com/?uid={selected.uid}' />, { store } );
         await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
             expect.any( Map ), expect.any( String ),
-            { selected: { uid: 'A' } }, expect.any( Function ), undefined
+            { selected: { uid: 'A' } }, expect.any( Function ), undefined, undefined
         ) );
         mountMendix.mockClear();
         await act( async() => { store.dispatch( { type: 'update', path: 'unrelated', value: 2 } ); } );
@@ -50,7 +50,22 @@ describe( 'mendixEmbedded SWF lifecycle', () => {
         act( () => { store.dispatch( { type: 'update', path: 'selected.uid', value: 'B' } ); } );
         await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
             expect.any( Map ), expect.any( String ),
-            { selected: { uid: 'B' } }, expect.any( Function ), undefined
+            { selected: { uid: 'B' } }, expect.any( Function ), undefined, undefined
+        ) );
+    } );
+
+    it( 'passes the Active Workspace theme from ctx and reloads when it changes', async() => {
+        const store = createStore( _dispatchCtx, { theme: 'ui-darkSiemensTheme' } );
+        renderWithCtx( <MendixEmbedded config='https://apps.example.com/' />, { store } );
+        await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
+            expect.any( Map ), 'https://apps.example.com/',
+            {}, expect.any( Function ), undefined, 'ui-darkSiemensTheme'
+        ) );
+        mountMendix.mockClear();
+        act( () => { store.dispatch( { type: 'update', path: 'theme', value: 'ui-lightTheme' } ); } );
+        await waitFor( () => expect( mountMendix ).toHaveBeenCalledWith(
+            expect.any( Map ), 'https://apps.example.com/',
+            {}, expect.any( Function ), undefined, 'ui-lightTheme'
         ) );
     } );
 } );

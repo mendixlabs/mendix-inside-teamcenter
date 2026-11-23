@@ -99,3 +99,18 @@ const resolveParameterValue = ( context, value ) => {
 
     return value;
 };
+
+/**
+ * Returns the classes to add to the root element of the Mendix app for an Active Workspace theme.
+ * Hybrid themes only have a dark header, so the content area (and the Mendix app) is not dark.
+ *
+ * @param {String} awTheme - The theme from the Active Workspace context, for example 'ui-darkSiemensTheme'
+ * @return {String|undefined} The classes, for example 'theme-ui-darkSiemensTheme theme-dark'
+ */
+export const getThemeRootClass = ( awTheme ) => {
+    if ( !awTheme ) {
+        return undefined;
+    }
+
+    return /dark/i.test( awTheme ) ? `theme-${awTheme} theme-dark` : `theme-${awTheme}`;
+};

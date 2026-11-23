@@ -9,6 +9,9 @@
     },
     "tcSessionData.TCServerVersion": {
       "type": "string"
+    },
+    "theme": {
+      "type": "string"
     }
   },
   "data": {
@@ -31,7 +34,8 @@
         "config": "{{props.config || props.subPanelContext.declarativeKeyContext}}",
         "context": "{{ctx.derivedContext}}",
         "reloadAction": "{{actions.loadMendix}}",
-        "tcServerVersion": "{{ctx.tcSessionData.TCServerVersion}}"
+        "tcServerVersion": "{{ctx.tcSessionData.TCServerVersion}}",
+        "awTheme": "{{ctx.theme}}"
       },
       "outputData": {
         "errorCode": "errorCode"
@@ -55,7 +59,7 @@
     "render": "render",
     "onUpdate": {
       "action": "loadMendix",
-      "observers": [ "viewModel.ctx.derivedContext" ]
+      "observers": [ "viewModel.ctx.derivedContext", "viewModel.ctx.theme" ]
     },
     "onUnmount": "cleanup"
   },
