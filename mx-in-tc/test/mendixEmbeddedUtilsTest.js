@@ -2,6 +2,7 @@
 import {
     getMendixContextPaths,
     getResolvedMendixConfiguration,
+    getThemeRootClass,
     MendixEmbeddedError
 } from '../src/js/mendixEmbeddedUtils';
 
@@ -75,6 +76,20 @@ describe( 'mendixEmbeddedUtils', () => {
             );
 
             expect( paths ).toEqual( [ 'selection.uid' ] );
+        } );
+    } );
+
+    describe( 'getThemeRootClass', () => {
+        it.each( [
+            [ 'ui-darkTheme', 'theme-ui-darkTheme theme-dark' ],
+            [ 'ui-darkSiemensTheme', 'theme-ui-darkSiemensTheme theme-dark' ],
+            [ 'ui-lightTheme', 'theme-ui-lightTheme' ],
+            [ 'ui-lightSiemensTheme', 'theme-ui-lightSiemensTheme' ],
+            [ 'ui-hybridSiemensTheme', 'theme-ui-hybridSiemensTheme' ],
+            [ 'hostedLightTheme', 'theme-hostedLightTheme' ],
+            [ undefined, undefined ]
+        ] )( 'maps %s to %s', ( awTheme, expected ) => {
+            expect( getThemeRootClass( awTheme ) ).toBe( expected );
         } );
     } );
 

@@ -135,6 +135,24 @@ describe( 'mendixEmbeddedService', () => {
             expect( unmount ).toHaveBeenCalledTimes( 1 );
         } );
 
+        it( 'passes the theme root class to the app and remounts when the theme changes', async() => {
+            const unmount = jest.fn();
+            renderApp.mockReturnValue( unmount );
+            await mountMendix( refs( containerRef ), null, {}, reload, undefined, 'ui-darkSiemensTheme' );
+            await mountMendix( refs( containerRef ), null, {}, reload, undefined, 'ui-darkSiemensTheme' );
+            expect( renderApp ).toHaveBeenCalledTimes( 1 );
+            expect( renderApp ).toHaveBeenLastCalledWith(
+                expect.any( HTMLElement ), expect.objectContaining( { rootClass: 'theme-ui-darkSiemensTheme theme-dark' } )
+            );
+
+            await mountMendix( refs( containerRef ), null, {}, reload, undefined, 'ui-lightTheme' );
+            expect( unmount ).toHaveBeenCalledTimes( 1 );
+            expect( renderApp ).toHaveBeenCalledTimes( 2 );
+            expect( renderApp ).toHaveBeenLastCalledWith(
+                expect.any( HTMLElement ), expect.objectContaining( { rootClass: 'theme-ui-lightTheme' } )
+            );
+        } );
+
         it( 'cleans up every mounted app at once', async() => {
             const unmount = jest.fn();
             renderApp.mockReturnValue( unmount );
